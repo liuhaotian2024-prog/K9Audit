@@ -20,6 +20,7 @@ Usage:
     k9log report                    # Generate report from current logs
     k9log report --output=report.html  # Specify output file
 """
+import logging
 import json
 import html
 from pathlib import Path
