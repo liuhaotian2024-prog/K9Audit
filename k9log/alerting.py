@@ -294,6 +294,8 @@ def _format_single_alert(record):
         f"  finding: {finding}",
         "",
         f"->  k9log trace --step {seq}",
+        "",
+        "K9 正在追溯因果链，溯源完成后将立即发送第二条消息。",
     ]
     return "\n".join(parts)
 
@@ -428,6 +430,69 @@ class AlertManager:
         message = _format_single_alert(record)
         channels_sent = self._dispatch(message, record)
         _record_history(record, channels_sent)
+        import threading
+        t = threading.Thread(
+            target=self._send_causal_followup,
+            args=(record, channels_sent),
+            daemon=True
+        )
+        t.start()
+
+    def _send_causal_followup(self, record, channels_sent):
+        # Runs in background thread. Never blocks the audit path.
+        try:
+            import time
+            time.sleep(0.1)
+            from k9log.causal_analyzer import CausalChainAnalyzer
+            analyzer = CausalChainAnalyzer()
+            if not analyzer.records:
+                return
+            seq = (record.get('_integrity') or {}).get('seq')
+            incident_step = None
+            if seq is not None:
+                for idx, rec in enumerate(analyzer.records):
+                    if (rec.get('_integrity') or {}).get('seq') == seq:
+                        incident_step = idx
+                        break
+            if incident_step is None:
+                for idx in range(len(analyzer.records) - 1, -1, -1):
+                    rec = analyzer.records[idx]
+                    if not rec.get('R_t+1', {}).get('passed', True):
+                        incident_step = idx
+                        break
+            if incident_step is None:
+                return
+            analyzer.build_causal_dag()
+            result = analyzer.find_root_causes(incident_step)
+            if not result or not result.get('root_causes'):
+                return
+            lines = [
+                '[K9 Audit] 溯源完成',
+                '',
+                'Incident: Step #' + str(incident_step),
+                '',
+                '🎯 Root Causes:',
+            ]
+            for rc in result['root_causes'][:3]:
+                conf = int(rc['confidence'] * 100)
+                label = rc['skill']
+                if rc.get('file_path'):
+                    label += ' (' + rc['file_path'] + ')'
+                lines.append('  Step #' + str(rc['step']) + ' - ' + label + '  (' + str(conf) + '% confidence)')
+                lines.append('    ' + rc['reasoning'])
+                if rc.get('keyword'):
+                    lines.append('    Missing: import ' + rc['keyword'])
+                if rc.get('execution_error'):
+                    lines.append('    Error: ' + rc['execution_error'][:80])
+            lines += [
+                '',
+                'Chain length: ' + str(result['chain_length']) + ' steps',
+                '',
+                'k9log causal --last  # for full analysis',
+            ]
+            self._dispatch('\n'.join(lines), record)
+        except Exception:
+            pass
 
     def _send_batch(self, records):
         if len(records) == 1:
