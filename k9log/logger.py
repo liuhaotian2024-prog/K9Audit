@@ -1,4 +1,4 @@
-# K9log - Engineering-grade Causal Audit for AI Agent Ecosystems
+﻿# K9log - Engineering-grade Causal Audit for AI Agent Ecosystems
 # Copyright (C) 2026 Haotian Liu
 # AGPL-3.0 - see LICENSE for details
 """
@@ -288,6 +288,80 @@ class CIEULogger:
         except Exception:
             pass  # Never crash on metalearning failure
 
+
+    def update_outcome(self, tool_use_id: str, outcome: dict):
+        """Append an OUTCOME record linking back to a PreToolUse record.
+
+        Called by PostToolUse adapters (hook_post.py, langchain, openclaw etc.)
+        to record the actual execution result of a previously logged tool call.
+
+        Never modifies existing records — appends a new OUTCOME event so the
+        hash chain stays intact.  The causal_analyzer merges Pre + OUTCOME
+        records by tool_use_id when building the causal DAG.
+
+        outcome dict should contain:
+            exit_code   : int   (0 = success)
+            stdout      : str   (truncated to 2000 chars)
+            stderr      : str   (truncated to 2000 chars)
+            error       : str   (exception message if any)
+            duration_sec: float
+        """
+        if not tool_use_id:
+            return
+
+        import logging
+        _log = logging.getLogger('k9log.outcome')
+
+        # Truncate large outputs to keep ledger manageable
+        def _trunc(v, n=2000):
+            s = str(v) if v is not None else ''
+            return s[:n] + '...[truncated]' if len(s) > n else s
+
+        exit_code = outcome.get('exit_code', 0)
+        passed    = (exit_code == 0) and not outcome.get('error')
+
+        record = {
+            'event_type': 'OUTCOME',
+            'timestamp':  __import__('datetime').datetime.now(
+                              __import__('datetime').timezone.utc).isoformat(),
+            'X_t': {
+                'tool_use_id': tool_use_id,
+                'agent_name':  'Claude Code',
+                'agent_type':  'coding_assistant',
+            },
+            'U_t': {
+                'skill':  'k9log.outcome',
+                'params': {'tool_use_id': tool_use_id},
+            },
+            'Y_star_t': {
+                'constraints': {},
+                'y_star_meta': {'source': 'hook_post', 'version': '1.0.0'},
+            },
+            'Y_t+1': {
+                'status':       'success' if passed else 'error',
+                'exit_code':    exit_code,
+                'stdout':       _trunc(outcome.get('stdout', '')),
+                'stderr':       _trunc(outcome.get('stderr', '')),
+                'error':        _trunc(outcome.get('error',  '')),
+                'duration_sec': outcome.get('duration_sec', 0.0),
+            },
+            'R_t+1': {
+                'passed':           passed,
+                'violations':       [] if passed else [{
+                    'type':     'EXECUTION_ERROR',
+                    'message':  _trunc(outcome.get('error') or outcome.get('stderr', ''), 200),
+                    'severity': 0.8,
+                }],
+                'overall_severity': 0.0 if passed else 0.8,
+                'risk_level':       'LOW' if passed else 'HIGH',
+            },
+        }
+
+        try:
+            self.write_cieu(record)
+        except Exception as e:
+            _log.error('k9log: failed to write OUTCOME record (tool_use_id=%s): %s',
+                       tool_use_id, e)
     def _iter_session_records(self, session_id: str):
         """从日志文件里读出属于本 session 的 CIEU 记录。"""
         if not self.log_file.exists():
@@ -325,4 +399,5 @@ def get_logger():
             if _logger is None:  # double-checked locking
                 _logger = CIEULogger()
     return _logger
+
 

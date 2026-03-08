@@ -1,1 +1,1 @@
-﻿{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"python -m k9log.hook"}]}]}}
+﻿{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"python -m k9log.hook"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"python -m k9log.hook_post"}]}]}}
