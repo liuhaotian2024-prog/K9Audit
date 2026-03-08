@@ -62,3 +62,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+k9_evidence_report*.html
+output/
+*.html
+.coverage
+
