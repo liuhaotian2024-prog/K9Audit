@@ -18,6 +18,7 @@ K9log Constraints - Enhanced constraint types and checking
 """
 import json
 import hashlib
+import logging
 import re
 from pathlib import Path
 from datetime import datetime, timezone
@@ -54,21 +55,31 @@ def load_constraints(skill_name, inline_constraints=None):
                     source = 'config_file'
                     source_path = str(config_file)
             except Exception as e:
-                print(f'Warning: Failed to load constraints from {config_file}: {e}')
+                logging.getLogger('k9log').warning('k9log: failed to load constraints from %s: %s', config_file, e)
     
     # Calculate hash
     y_star_hash = hash_ystar(constraints)
-    
+
+    # Warn if no constraints found -- unconstrained calls are recorded
+    # but violations cannot be detected, which is a security gap.
+    if not constraints:
+        logging.getLogger('k9log').warning(
+            'k9log: skill "%s" has no constraints (no inline rules, no config file) '
+            '-- call will be recorded as UNCONSTRAINED', skill_name
+        )
+
     return {
         'constraints': constraints,
         'y_star_meta': {
-            'source': source,
+            'source': source if constraints else 'none',
             'source_path': source_path,
             'version': version or '1.0.0',
             'hash': y_star_hash,
-            'loaded_at': datetime.now(timezone.utc).isoformat()
+            'loaded_at': datetime.now(timezone.utc).isoformat(),
+            'unconstrained': not bool(constraints),
         }
     }
+
 
 def hash_ystar(constraints):
     """Calculate SHA256 hash of canonicalized constraints"""
@@ -95,35 +106,7 @@ def canonicalize_ystar(constraints):
 #
 #   from k9log.constraints import register_constraint
 #
-#   @register_constraint("country_code")
-#   def check_country_code(param_name, value, rule_value):
-#       import pycountry
-#       if str(value).upper() not in [c.alpha_2 for c in pycountry.countries]:
-#           return {
-#               "type": "invalid_country_code",
-#               "field": param_name,
-#               "actual": value,
-#               "constraint": "country_code",
-#               "severity": 0.7,
-#               "message": f"{param_name}={value} is not a valid ISO country code"
-#           }
-#       return None
-#
-# Then in your agent:
-#   @k9(origin={"country_code": True})
-#   def process_order(origin, amount): ...
-#
-# Sharing with the community:
-#   Package your constraints and publish to PyPI as e.g. k9log-constraints-finance
-#   Others can pip install k9log-constraints-finance and use your constraints directly.
-#
-# Rules for custom constraint functions:
-#   - Signature: (param_name: str, value: Any, rule_value: Any) -> dict | None
-#   - Return None if the value passes
-#   - Return a violation dict if the value fails (must include: type, field,
-#     actual, constraint, severity 0.0-1.0, message)
-#   - Must be deterministic: same input always produces same output
-#   - Must not have side effects (no network calls, no file writes)
+
 
 _CUSTOM_CONSTRAINT_REGISTRY: dict = {}
 
@@ -194,6 +177,32 @@ def check_compliance(params, result, y_star_t):
                 })
                 break  # one violation per deny_content check is enough
 
+    # -- Top-level allowed_paths: check path-like params ---------------------
+    allowed_paths_top = constraints.get('allowed_paths', [])
+    if allowed_paths_top:
+        PATH_PARAM_NAMES = {"path", "file_path", "filepath", "dest",
+                            "destination", "output", "target", "filename"}
+        for p_name, p_value in params.items():
+            if p_name.lower() in PATH_PARAM_NAMES or p_name.lower().endswith("path"):
+                violation = None
+                import fnmatch as _fnmatch
+                _path = str(p_value).replace("\\", "/")
+                _allowed = False
+                for _pat in allowed_paths_top:
+                    _pat = _pat.replace("\\", "/")
+                    if "**" in _pat:
+                        _base = _pat.split("**")[0].rstrip("/").lstrip("./")
+                        if _path.lstrip("./").startswith(_base):
+                            _allowed = True; break
+                    elif _fnmatch.fnmatch(_path, _pat) or _fnmatch.fnmatch(_path.lstrip("./"), _pat.lstrip("./")):
+                        _allowed = True; break
+                if not _allowed:
+                    violation = {"type": "PATH_VIOLATION", "field": p_name,
+                        "actual": str(p_value), "constraint": f"allowed_paths={allowed_paths_top}",
+                        "severity": 0.8, "message": f"Path '{p_value}' is outside allowed directories"}
+                if violation:
+                    violations.append(violation)
+
     # Flatten Y_t+1.result for output field checking
     result_flat = {}
     if isinstance(result, dict):
@@ -201,7 +210,10 @@ def check_compliance(params, result, y_star_t):
         if isinstance(result_obj, dict):
             result_flat = result_obj
 
+    _TOP_LEVEL_KEYS = {"deny_content", "allowed_paths"}
     for param_name, rules in constraints.items():
+        if param_name in _TOP_LEVEL_KEYS:
+            continue
         if param_name in params:
             value = params[param_name]
         elif param_name in result_flat:
@@ -252,7 +264,10 @@ def check_compliance(params, result, y_star_t):
         
         # List constraints
         if 'blocklist' in rules:
-            violation = _check_blocklist(param_name, value, rules['blocklist'])
+            violation = _check_blocklist(
+                param_name, value, rules['blocklist'],
+                case_sensitive=rules.get('case_sensitive', False)
+            )
             if violation:
                 violations.append(violation)
         
@@ -278,11 +293,11 @@ def check_compliance(params, result, y_star_t):
                 continue
             checker = _CUSTOM_CONSTRAINT_REGISTRY.get(rule_key)
             if checker is None:
-                # Unknown constraint type — log a warning but do not fail
-                import warnings
-                warnings.warn(
-                    f"k9log: unknown constraint type '{rule_key}' on param "
-                    f"'{param_name}'. Register it with @register_constraint."
+                import logging as _logging
+                _logging.getLogger('k9log').warning(
+                    "k9log: unknown constraint type '%s' on param '%s'. "
+                    "Register it with @register_constraint.",
+                    rule_key, param_name
                 )
                 continue
             try:
@@ -290,10 +305,10 @@ def check_compliance(params, result, y_star_t):
                 if violation:
                     violations.append(violation)
             except Exception as e:
-                import warnings
-                warnings.warn(
-                    f"k9log: custom constraint '{rule_key}' raised an error "
-                    f"for param '{param_name}': {e}"
+                import logging as _logging
+                _logging.getLogger('k9log').warning(
+                    "k9log: custom constraint '%s' raised an error for param '%s': %s",
+                    rule_key, param_name, e
                 )
     
     # Calculate overall assessment
@@ -418,7 +433,7 @@ def _check_max_length(param_name, value, max_len):
         pass
     return None
 
-def _check_blocklist(param_name, value, blocklist):
+def _check_blocklist(param_name, value, blocklist, case_sensitive=False):
     """Check blocklist constraint with three-tier matching.
 
     For each entry in *blocklist*, the following checks run in order:
@@ -456,8 +471,10 @@ def _check_blocklist(param_name, value, blocklist):
                 pass  # malformed pattern – skip silently
             continue
 
-        # ── Tier 2: exact (case-insensitive) ──
-        if str_value.lower() == entry_str.lower():
+        # ── Tier 2: exact ──
+        cmp_value = str_value if case_sensitive else str_value.lower()
+        cmp_entry = entry_str if case_sensitive else entry_str.lower()
+        if cmp_value == cmp_entry:
             return {
                 'type': 'blocklist_hit',
                 'field': param_name,
@@ -469,8 +486,8 @@ def _check_blocklist(param_name, value, blocklist):
                 'message': f"{param_name}={value} in blocklist (exact)"
             }
 
-        # ── Tier 3: substring (case-insensitive) ──
-        if entry_str.lower() in str_value.lower():
+        # ── Tier 3: substring ──
+        if cmp_entry in cmp_value:
             return {
                 'type': 'blocklist_hit',
                 'field': param_name,

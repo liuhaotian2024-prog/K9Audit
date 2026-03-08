@@ -39,60 +39,50 @@ def generate_report(log_file=None, output_file=None, output_path=None):
     output_file = Path(output_file)
 
     if not log_file.exists():
-        print(f"No log file found: {log_file}")
+        logging.getLogger("k9log").warning("k9log: no log file found: %s", log_file)
         return None
 
-    # Load records
-    records = []
-    with open(log_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
+    # -- Streaming helper -------------------------------------------------------
+    def _stream(path):
+        with open(path, 'r', encoding='utf-8') as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if ln:
+                    try:
+                        yield json.loads(ln)
+                    except json.JSONDecodeError:
+                        continue
 
-    # Filter out session markers
-    events = [r for r in records if 'X_t' in r]
+    # -- Pass 1: streaming stats (O(1) memory) ---------------------------------
+    total           = 0
+    violation_count = 0
+    risk_counts     = {'LOW': 0, 'MEDIUM': 0, 'HIGH': 0, 'CRITICAL': 0}
+    skill_stats     = {}
+    violation_types = {}
+    agents          = {}
 
-    # Compute stats
-    total = len(events)
-    violations = [r for r in events if not r.get('R_t+1', {}).get('passed', True)]
-    violation_count = len(violations)
-    passed_count = total - violation_count
-    violation_rate = (violation_count / total * 100) if total > 0 else 0
-
-    # Risk breakdown
-    risk_counts = {'LOW': 0, 'MEDIUM': 0, 'HIGH': 0, 'CRITICAL': 0}
-    for r in violations:
-        level = r.get('R_t+1', {}).get('risk_level', 'LOW')
-        if level in risk_counts:
-            risk_counts[level] += 1
-
-    # Skill breakdown
-    skill_stats = {}
-    for r in events:
-        skill = r.get('U_t', {}).get('skill', 'unknown')
+    for r in _stream(log_file):
+        if 'X_t' not in r:
+            continue
+        total += 1
         passed = r.get('R_t+1', {}).get('passed', True)
+        if not passed:
+            violation_count += 1
+            level = r.get('R_t+1', {}).get('risk_level', 'LOW')
+            if level in risk_counts:
+                risk_counts[level] += 1
+            for v in r.get('R_t+1', {}).get('violations', []):
+                vtype = v.get('type', 'unknown')
+                violation_types[vtype] = violation_types.get(vtype, 0) + 1
+
+        skill = r.get('U_t', {}).get('skill', 'unknown')
         if skill not in skill_stats:
             skill_stats[skill] = {'total': 0, 'violations': 0}
         skill_stats[skill]['total'] += 1
         if not passed:
             skill_stats[skill]['violations'] += 1
 
-    # Violation types
-    violation_types = {}
-    for r in violations:
-        for v in r.get('R_t+1', {}).get('violations', []):
-            vtype = v.get('type', 'unknown')
-            violation_types[vtype] = violation_types.get(vtype, 0) + 1
-
-    # Agent info
-    agents = {}
-    for r in events:
         _raw_name = r.get('X_t', {}).get('agent_name', 'unknown')
-        # agent_name might be a dict (legacy records before identity fix) — extract safely
         if isinstance(_raw_name, dict):
             name = _raw_name.get('agent_name') or _raw_name.get('agent_id') or 'unknown'
         else:
@@ -100,23 +90,25 @@ def generate_report(log_file=None, output_file=None, output_path=None):
         if name not in agents:
             agents[name] = {'total': 0, 'violations': 0}
         agents[name]['total'] += 1
-        if not r.get('R_t+1', {}).get('passed', True):
+        if not passed:
             agents[name]['violations'] += 1
 
-    # Hash chain verification
-    chain_ok = True
-    prev_hash = '0' * 64
-    for r in records:
-        integrity = r.get('_integrity', {})
-        if not integrity:
-            continue
-        if integrity.get('prev_hash') != prev_hash:
-            chain_ok = False
-            break
-        prev_hash = integrity.get('event_hash', prev_hash)
+    passed_count   = total - violation_count
+    violation_rate = (violation_count / total * 100) if total > 0 else 0
 
-    # Timeline data (last 20 events)
-    timeline_events = events[-20:]
+    # -- Pass 2: last 20 events for timeline (streaming) ----------------------
+    from collections import deque
+    _tl = deque(maxlen=20)
+    for r in _stream(log_file):
+        if 'X_t' in r:
+            _tl.append(r)
+    timeline_events = list(_tl)
+
+    # -- Chain integrity via verifier (authoritative) -------------------------
+    from k9log.verifier import LogVerifier
+    integrity_result = LogVerifier(log_file).verify_integrity()
+    chain_ok = integrity_result.get('passed', False)
+
 
     # Generate HTML
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -549,7 +541,7 @@ td.mono {{
     <div class="stat-card">
         <div class="stat-label">Total Events</div>
         <div class="stat-value blue">{total}</div>
-        <div class="stat-sub">{len(set(r.get('U_t', {}).get('skill', '') for r in events))} unique skills</div>
+        <div class="stat-sub">{len(set(r.get('U_t', {}).get('skill', '') for r in _stream(log_file)))} unique skills</div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Passed</div>
@@ -616,7 +608,7 @@ td.mono {{
 <div class="footer">
     <strong>K9log</strong> &mdash; Engineering-grade Causal Audit for AI Agents<br>
     <a href="https://github.com/liuhaotian2024-prog/k9log-core">github.com/liuhaotian2024-prog/k9log-core</a>
-    &nbsp;&bull;&nbsp; Apache 2.0
+    &nbsp;&bull;&nbsp; AGPL-3.0
 </div>
 
 </div>

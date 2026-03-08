@@ -21,8 +21,7 @@ import json
 import time
 import hashlib
 import threading
-import urllib.request
-import urllib.error
+import requests as _requests
 import atexit
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -89,7 +88,7 @@ def _load_config():
                     cfg[key] = {**DEFAULT_CONFIG[key], **user_cfg[key]}
             return cfg
         except Exception as e:
-            print(f"[k9log] Warning: Failed to load alerting config: {e}")
+            logging.getLogger("k9log").warning("k9log: failed to load alerting config: %s", e)
             return DEFAULT_CONFIG
     return DEFAULT_CONFIG
 
@@ -191,47 +190,43 @@ def _is_dnd_active(dnd_config):
 # --- Channel Senders ---
 
 def _send_telegram(token, chat_id, message):
+    import logging
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps({"chat_id": chat_id, "text": message}).encode('utf-8')
-    req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
+        resp = _requests.post(url, json={"chat_id": chat_id, "text": message}, timeout=10)
+        return resp.status_code == 200
     except Exception as e:
-        print(f"[k9log] Telegram send failed: {e}")
+        logging.getLogger('k9log').warning('[k9log] Telegram send failed: %s', e)
         return False
 
 
 def _send_slack(webhook_url, message):
-    payload = json.dumps({"text": message}).encode('utf-8')
-    req = urllib.request.Request(webhook_url, data=payload, headers={'Content-Type': 'application/json'})
+    import logging
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
+        resp = _requests.post(webhook_url, json={"text": message}, timeout=10)
+        return resp.status_code == 200
     except Exception as e:
-        print(f"[k9log] Slack send failed: {e}")
+        logging.getLogger('k9log').warning('[k9log] Slack send failed: %s', e)
         return False
 
 
 def _send_discord(webhook_url, message):
-    payload = json.dumps({"content": message}).encode('utf-8')
-    req = urllib.request.Request(webhook_url, data=payload, headers={'Content-Type': 'application/json'})
+    import logging
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status in (200, 204)
+        resp = _requests.post(webhook_url, json={"content": message}, timeout=10)
+        return resp.status_code in (200, 204)
     except Exception as e:
-        print(f"[k9log] Discord send failed: {e}")
+        logging.getLogger('k9log').warning('[k9log] Discord send failed: %s', e)
         return False
 
 
 def _send_webhook(url, data):
-    payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
-    req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})
+    import logging
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return 200 <= resp.status < 300
+        resp = _requests.post(url, json=data, timeout=10)
+        return 200 <= resp.status_code < 300
     except Exception as e:
-        print(f"[k9log] Webhook send failed: {e}")
+        logging.getLogger('k9log').warning('[k9log] Webhook send failed: %s', e)
         return False
 
 

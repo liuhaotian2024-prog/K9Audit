@@ -157,8 +157,8 @@ The measured deviation between `U_t` and `Y*_t`.
 |------|---------|
 | `DENY_CONTENT` | Action content matched a forbidden pattern in the intent contract |
 | `GRANT_SCOPE_MISMATCH` | Action class does not match the declared intent |
-| `LEARNED_RULE_HIT` | Action matched a pattern learned from prior incident history |
-| `taint_violation` | Data from an untrusted source reached a sensitive operation |
+| `LEARNED_RULE_HIT` | Action matched a pattern learned from prior incident history | _(Phase 2)_ |
+| `taint_violation` | Data from an untrusted source reached a sensitive operation | _(Phase 2)_ |
 
 ---
 
@@ -346,12 +346,6 @@ logger.write_cieu({
     "Y_t+1": {"result": ..., "status": "success"},
     "R_t+1": {"passed": True, "violations": [], "overall_severity": 0.0}
 })
-```
-
-**JSONL ingestion**
-
-```bash
-k9log ingest --input events.jsonl
 ```
 
 ---

@@ -110,8 +110,14 @@ class IncidentTracer:
         if constraints:
             for param, rules in constraints.items():
                 console.print(f"   {param}:")
-                for rule, value in rules.items():
-                    console.print(f"      {rule} = {value}")
+                if isinstance(rules, dict):
+                    for rule, value in rules.items():
+                        console.print(f"      {rule} = {value}")
+                elif isinstance(rules, list):
+                    for value in rules:
+                        console.print(f"      - {value}")
+                else:
+                    console.print(f"      {rules}")
         else:
             console.print("   [dim]No constraints defined[/dim]")
         

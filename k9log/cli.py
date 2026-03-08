@@ -23,16 +23,17 @@ from rich.table import Table
 console = Console()
 
 @click.group()
-@click.version_option(version='0.1.0')
+@click.version_option(version='0.2.0')
 def main():
     """K9log - Engineering-grade Causal Audit"""
     pass
 
-@main.command()
+@main.command(hidden=True)
 def init():
     """Interactive setup wizard"""
-    from k9log.wizard import run_wizard
-    run_wizard()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 @main.command()
 def stats():
@@ -43,8 +44,18 @@ def stats():
         console.print('[yellow]No logs found[/yellow]')
         return
     verifier = LogVerifier(log_file)
-    total = len(verifier.records)
-    violations = sum(1 for r in verifier.records if not r.get('R_t+1', {}).get('passed', True))
+    total = 0
+    violations = 0
+    violation_types = {}
+    for r in verifier._stream_records():
+        if r.get('event_type') == 'SESSION_END':
+            continue
+        total += 1
+        if not r.get('R_t+1', {}).get('passed', True):
+            violations += 1
+            for v in r.get('R_t+1', {}).get('violations', []):
+                vtype = v.get('type', 'unknown')
+                violation_types[vtype] = violation_types.get(vtype, 0) + 1
     passed = total - violations
     console.print('\n[cyan]K9log Statistics[/cyan]\n')
     console.print(f'[green]Total records:[/green] {total}')
@@ -52,12 +63,7 @@ def stats():
     console.print(f'[red]Violations:[/red] {violations}')
     if total > 0:
         console.print(f'[yellow]Violation rate:[/yellow] {violations/total*100:.1f}%')
-    if violations > 0:
-        violation_types = {}
-        for r in verifier.records:
-            for v in r.get('R_t+1', {}).get('violations', []):
-                vtype = v.get('type', 'unknown')
-                violation_types[vtype] = violation_types.get(vtype, 0) + 1
+    if violation_types:
         console.print('\n[bold]Violation Types:[/bold]')
         for vtype, count in sorted(violation_types.items(), key=lambda x: -x[1]):
             console.print(f'  {vtype}: {count}')
@@ -80,25 +86,16 @@ def trace(step, last):
     else:
         console.print('[yellow]Please specify --step=N or --last[/yellow]')
 
-@main.command()
+@main.command(hidden=True)
 @click.option('--step', type=int, required=True, help='Incident step number')
 @click.option('--export', is_flag=True, help='Export DAG to JSON')
 def causal(step, export):
     """Analyze causal chain and identify root causes"""
-    from k9log.causal_analyzer import CausalChainAnalyzer
-    log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
-    if not log_file.exists():
-        console.print('[yellow]No logs found[/yellow]')
-        return
-    analyzer = CausalChainAnalyzer(log_file)
-    console.print('[cyan]Building causal DAG...[/cyan]')
-    dag = analyzer.build_causal_dag()
-    console.print(f"[green]DAG built: {dag['metadata']['total_nodes']} nodes, {dag['metadata']['total_edges']} edges[/green]\n")
-    analyzer.visualize_causal_chain(step)
-    if export:
-        analyzer.export_dag()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
-@main.command()
+@main.command(hidden=True)
 @click.option('--policy', type=click.Path(exists=True), required=True, help='Policy config file (JSON)')
 def counterfactual(policy):
     """Run counterfactual replay with alternative policy"""
@@ -113,16 +110,12 @@ def counterfactual(policy):
     console.print(f'[cyan]Loading policy: {policy_config.get("id", "unnamed")}[/cyan]\n')
     replay_counterfactual(policy_config, log_file)
 
-@main.command()
+@main.command(hidden=True)
 def taint():
     """Analyze taint propagation and detect violations"""
-    from k9log.taint import analyze_taint
-    log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
-    if not log_file.exists():
-        console.print('[yellow]No logs found[/yellow]')
-        return
-    console.print('[cyan]Analyzing taint propagation...[/cyan]\n')
-    analyze_taint(log_file)
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 @main.command('verify-log')
 @click.argument('log_file', type=click.Path(exists=True), required=False)
@@ -152,21 +145,29 @@ def verify_ystar_cmd(log_file):
         log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
     console.print(f'[cyan]Verifying Y* in {log_file}[/cyan]\n')
     result = verify_ystar(log_file)
+    summary = result['summary']
     console.print(f"[green]Y* verification complete[/green]")
-    console.print(f"   Total unique Y* versions: {result['total_versions']}\n")
-    if result['versions']:
-        table = Table(show_header=True)
+    console.print(f"   Overall coverage: {summary['overall_coverage_rate']*100:.1f}%  "
+                  f"({summary['covered_records']}/{summary['total_records']} calls)")
+    if summary.get('coverage_warning'):
+        console.print(f"   [yellow]{summary['coverage_warning']}[/yellow]")
+    if summary['uncovered_skills']:
+        console.print(f"   [red]Uncovered skills: {', '.join(summary['uncovered_skills'])}[/red]")
+    if summary['multi_version_skills']:
+        console.print(f"   [yellow]Constraint drift: {', '.join(summary['multi_version_skills'])}[/yellow]")
+    if result['skills']:
+        from rich.table import Table as _Table
+        table = _Table(show_header=True)
         table.add_column("Skill")
-        table.add_column("Hash")
-        table.add_column("Source")
-        table.add_column("Count")
-        for v in result['versions']:
-            table.add_row(
-                v['skill'],
-                v['hash'][:16] + '...' if v['hash'] != 'none' else 'none',
-                v['source'] or 'none',
-                str(v['count'])
-            )
+        table.add_column("Calls")
+        table.add_column("Coverage")
+        table.add_column("Violations")
+        table.add_column("Status")
+        for s in result['skills']:
+            sc = 'red' if s['status'] == 'UNCOVERED' else 'yellow' if s['status'] == 'MULTI_VERSION' else 'green'
+            table.add_row(s['skill'], str(s['total_calls']),
+                          f"{s['coverage_rate']*100:.0f}%", str(s['violations_found']),
+                          f"[{sc}]{s['status']}[/{sc}]")
         console.print(table)
 
 @main.command()
@@ -179,7 +180,9 @@ def agents():
         return
     verifier = LogVerifier(log_file)
     agent_stats = {}
-    for record in verifier.records:
+    for record in verifier._stream_records():
+        if record.get('event_type') == 'SESSION_END':
+            continue
         agent_id = record.get('X_t', {}).get('agent_id', 'unknown')
         agent_name = record.get('X_t', {}).get('agent_name', 'unknown')
         passed = record.get('R_t+1', {}).get('passed', True)
@@ -202,7 +205,7 @@ def agents():
 
 # --- Week 9-10: Alerting Commands ---
 
-@main.group()
+@main.group(hidden=True)
 def alerts():
     """Smart alerting system management"""
     pass
@@ -435,7 +438,7 @@ def history(last):
 
 
 # --- Fuse Commands ---
-@main.group()
+@main.group(hidden=True)
 def fuse():
     """Circuit breaker (FUSE) management"""
     pass
@@ -444,27 +447,9 @@ def fuse():
 @fuse.command()
 def status():
     """Show current fuse state"""
-    from k9log.fuse import load_state, STATE_PATH
-    state = load_state()
-    console.print('\n[cyan]FUSE Status[/cyan]\n')
-    if state.get('active'):
-        console.print('[red bold]Status: ACTIVE (agent halted)[/red bold]')
-    elif state.get('armed') is False:
-        console.print('[yellow]Status: DISARMED[/yellow]')
-    else:
-        console.print('[green]Status: ARMED (ready, not triggered)[/green]')
-    if state.get('active'):
-        console.print(f"  Agent ID   : {state.get('agent_id', '-')}")
-        console.print(f"  Session ID : {state.get('session_id', '-')}")
-        console.print(f"  Severity   : {state.get('severity', '-')}")
-        console.print(f"  Scope      : {state.get('scope', '-')}")
-        console.print(f"  Mode       : {state.get('mode', '-')}")
-        console.print(f"  Reason     : {state.get('reason', '-')}")
-        console.print(f"  Types      : {state.get('trigger_types', [])}")
-        console.print(f"  Triggered  : {state.get('ts', '-')}")
-        console.print(f"\n  To resume: [bold]k9log fuse disarm[/bold]")
-    if not STATE_PATH.exists():
-        console.print('\n  [dim](No state file yet - fuse has never fired)[/dim]')
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 @fuse.command()
@@ -483,13 +468,13 @@ def disarm():
 @fuse.command()
 def arm():
     """Re-arm fuse so it can trigger on future violations"""
-    from k9log.fuse import arm as _arm
-    _arm()
-    console.print('[green]FUSE armed. Will trigger on next qualifying violation.[/green]')
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 # --- Policy Commands ---
-@main.group()
+@main.group(hidden=True)
 def policy():
     """Policy Pack management"""
     pass
@@ -498,23 +483,9 @@ def policy():
 @policy.command()
 def status():
     """Show current active policy status"""
-    from k9log.policy_pack import get_active_policy, policy_hash, POLICY_PATH
-    pol = get_active_policy()
-    console.print('\n[cyan]Policy Pack Status[/cyan]\n')
-    if pol is None:
-        console.print('[yellow]No policy loaded.[/yellow]')
-        console.print('  Run: k9log policy load --path <file>')
-        console.print('  Using built-in defaults.')
-        return
-    h = policy_hash(pol)
-    console.print(f'[green]Policy loaded[/green]')
-    console.print(f'  ID      : {pol.policy_id}')
-    console.print(f'  Version : {pol.version}')
-    console.print(f'  Created : {pol.created_at}')
-    console.print(f'  Hash    : {h}')
-    console.print(f'  File    : {POLICY_PATH}')
-    fuse_enabled = pol.fuse.get('enabled', False)
-    console.print(f'  Fuse    : {"[red]ENABLED[/red]" if fuse_enabled else "[dim]disabled[/dim]"}')
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 @policy.command()
@@ -522,40 +493,9 @@ def status():
 @click.option('--sig', default=None, help='Path to .sig file for HMAC verification')
 def load(path, sig):
     """Load a policy file as the active policy"""
-    from k9log.policy_pack import (
-        load_policy, save_active_policy, policy_hash, verify_policy_signature
-    )
-    from k9log.decision import reset_decision_engine
-    # Signature check
-    if sig:
-        ok = verify_policy_signature(path, sig)
-        if not ok:
-            console.print('[red]Signature verification FAILED. Policy not loaded.[/red]')
-            # Write K9_INTERNAL audit record
-            try:
-                from k9log.logger import get_logger
-                get_logger().write_cieu({
-                    'event_type': 'K9_INTERNAL',
-                    'U_t': {'skill': 'k9log.policy', 'action': 'LOAD_REJECTED'},
-                    'X_t': {},
-                    'Y_star_t': {},
-                    'Y_t+1': {},
-                    'R_t+1': {
-                        'passed': True,
-                        'violations': [],
-                        'overall_severity': 0.0,
-                        'message': f'Policy signature verification failed: {path}',
-                    },
-                })
-            except Exception:
-                pass
-            return
-    pol = load_policy(path)
-    save_active_policy(pol)
-    reset_decision_engine()
-    h = policy_hash(pol)
-    console.print(f'[green]Policy loaded: {pol.policy_id} v{pol.version}[/green]')
-    console.print(f'  Hash: {h}')
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 @policy.command()
@@ -583,7 +523,7 @@ def report(output):
         console.print(f'[green]Report saved: {result}[/green]')
 
 
-@main.command()
+@main.command(hidden=True)
 @click.option('--run-dir', required=True, help='Replay result directory')
 @click.option('--out', required=True, help='Output zip path')
 def bundle(run_dir, out):
@@ -680,7 +620,7 @@ def bundle(run_dir, out):
     console.print(f'  + MANIFEST.json')
 
 
-@main.group()
+@main.group(hidden=True)
 def hooks():
     "k9log git hooks management"
     pass
@@ -703,7 +643,7 @@ def hooks_install():
 
 
 
-@main.group()
+@main.group(hidden=True)
 def grants():
     """Federated grant library management"""
     pass
@@ -712,8 +652,9 @@ def grants():
 @click.argument("source")
 def grants_import(source):
     """Import a grant from URL or local file path"""
-    from k9log.federated import import_grant
-    import_grant(source)
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 @grants.command("export")
 @click.option("--id", "grant_id", required=True, help="Grant ID to export")
@@ -726,8 +667,9 @@ def grants_export(grant_id, output):
 @grants.command("list")
 def grants_list():
     """List all active and suggested grants"""
-    from k9log.federated import list_grants
-    list_grants()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 @grants.command("verify")
 @click.argument("grant_path")
@@ -786,144 +728,122 @@ def grants_approve(grant_id, approve_all):
     else:
         console.print(f"[bold green]{len(approved)} grant(s) activated.[/bold green]")
 
-@main.command("learn")
+@main.command("learn", hidden=True)
 def learn_cmd():
     """Run causal metalearning — suggest grants from incident history"""
-    from k9log.metalearning import learn
-    learn()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 @main.command("health")
 @click.option("--log", default=None, help="CIEU log path (default: ~/.k9log/logs/k9log.cieu.jsonl)")
 def health_cmd(log):
-    """CIEU-driven system health report"""
-    import json, os
+    """System health -- Ledger stats + chain integrity + coverage in one view"""
+    import os, json as _json
     from pathlib import Path
     from rich.panel import Panel
 
-    log_path = log or str(Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl")
-    if not os.path.exists(log_path):
-        console.print("[red]CIEU log not found: " + log_path + "[/red]")
+    log_path = Path(log) if log else Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+    if not log_path.exists():
+        console.print("[red]CIEU log not found: " + str(log_path) + "[/red]")
         return
 
-    records = [json.loads(l) for l in open(log_path, encoding="utf-8-sig")]
-    console.print(Panel.fit("[bold cyan]K9log Health Report[/bold cyan]\n[dim]" + log_path + "[/dim]", border_style="cyan"))
+    console.print(Panel.fit(
+        "[bold cyan]K9log Health Report[/bold cyan]\n[dim]" + str(log_path) + "[/dim]",
+        border_style="cyan"
+    ))
 
-    # 1. Hash chain
-    from k9log.verifier import LogVerifier
-    integrity = LogVerifier(log_path).verify_integrity()
-    chain_ok = integrity["passed"]
-    chain_tag = "[green]OK[/green]" if chain_ok else "[red]BROKEN[/red]"
-    console.print("\n[bold]Hash Chain[/bold]  " + chain_tag + "  records=" + str(integrity.get("total_records", 0)))
-    if not chain_ok:
-        console.print("  [red]断点: Step#" + str(integrity.get("break_point")) + " - " + str(integrity.get("message")) + "[/red]")
-
-    # 2. Constraint coverage
+    # -- 1. Streaming stats ---------------------------------------------------
     from collections import Counter
-    skill_total = Counter()
-    skill_covered = Counter()
+    total = 0; violations_tot = 0
     violation_types = Counter()
-    violations_total = 0
-    for r in records:
-        skill = r.get("U_t", {}).get("skill", "?")
-        skill_total[skill] += 1
-        if r.get("Y_star_t", {}).get("constraints"):
-            skill_covered[skill] += 1
-        for v in r.get("R_t+1", {}).get("violations", []):
-            violation_types[v.get("type", "?")] += 1
-            violations_total += 1
+    skill_total = Counter(); skill_covered = Counter()
 
-    total = sum(skill_total.values())
+    with open(log_path, encoding="utf-8-sig") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line: continue
+            try: r = _json.loads(line)
+            except Exception: continue
+            if "X_t" not in r: continue
+            total += 1
+            skill = r.get("U_t", {}).get("skill", "?")
+            skill_total[skill] += 1
+            if r.get("Y_star_t", {}).get("constraints"):
+                skill_covered[skill] += 1
+            if not r.get("R_t+1", {}).get("passed", True):
+                violations_tot += 1
+                for v in r.get("R_t+1", {}).get("violations", []):
+                    violation_types[v.get("type", "?")] += 1
+
+    passed_tot = total - violations_tot
+    vrate = violations_tot / total * 100 if total else 0
     covered = sum(skill_covered.values())
-    pct = int(100 * covered / total) if total else 0
-    console.print("\n[bold]Constraint Coverage[/bold]  " + str(covered) + "/" + str(total) + " (" + str(pct) + "%)")
+    cov_pct = int(100 * covered / total) if total else 0
 
+    # -- 2. Chain integrity ---------------------------------------------------
+    from k9log.verifier import LogVerifier, COVERAGE_WARN_THRESHOLD
+    integrity = LogVerifier(log_path).verify_integrity()
+    chain_ok  = integrity["passed"]
+
+    # -- 3. Summary -----------------------------------------------------------
+    chain_line = (
+        "[green]OK  Chain Intact[/green]" if chain_ok
+        else "[red]BROKEN -- " + str(integrity.get("message", "")) + "[/red]"
+    )
+    cov_color = "green" if cov_pct >= int(COVERAGE_WARN_THRESHOLD * 100) else "yellow"
+    console.print(
+        f"\n  Ledger     [white]{total}[/white] records  "
+        f"[green]{passed_tot} passed[/green]  "
+        f"[red]{violations_tot} violations[/red]  "
+        f"([yellow]{vrate:.1f}%[/yellow] rate)"
+    )
+    console.print(f"  Integrity  {chain_line}")
+    console.print(
+        f"  Coverage   [{cov_color}]{cov_pct}%[/{cov_color}]  "
+        f"({covered}/{total} calls constrained)"
+    )
+    if cov_pct < int(COVERAGE_WARN_THRESHOLD * 100):
+        console.print(
+            f"  [yellow]Coverage below {int(COVERAGE_WARN_THRESHOLD*100)}% -- "
+            f"add @k9 constraints to uncovered skills[/yellow]"
+        )
+
+    # -- 4. Skill table -------------------------------------------------------
+    console.print("\n[bold]Skill Coverage[/bold]")
     tbl = Table(show_header=True, header_style="bold")
-    tbl.add_column("Skill")
-    tbl.add_column("Calls", justify="right")
-    tbl.add_column("Constrained", justify="right")
-    tbl.add_column("Status")
+    tbl.add_column("Skill"); tbl.add_column("Calls", justify="right")
+    tbl.add_column("Constrained", justify="right"); tbl.add_column("Status")
     for skill in sorted(skill_total.keys()):
-        c = skill_covered[skill]
-        t = skill_total[skill]
-        if c == t:
-            status = "[green]OK[/green]"
-        elif c > 0:
-            status = "[yellow]PARTIAL[/yellow]"
-        else:
-            status = "[red]UNCOVERED[/red]"
+        c = skill_covered[skill]; t = skill_total[skill]
+        status = "[green]OK[/green]" if c == t else "[yellow]PARTIAL[/yellow]" if c > 0 else "[red]UNCOVERED[/red]"
         tbl.add_row(skill, str(t), str(c), status)
     console.print(tbl)
 
-    # 3. Violations
-    console.print("\n[bold]Violations[/bold]  total=" + str(violations_total))
-    for vt, cnt in violation_types.most_common():
-        console.print("  " + vt + ": " + str(cnt))
+    # -- 5. Violation breakdown -----------------------------------------------
+    if violation_types:
+        console.print("\n[bold]Violation Types[/bold]")
+        for vt, cnt in violation_types.most_common():
+            console.print(f"  [red]{vt}[/red]: {cnt}")
 
-    # 3b. Taint analysis
-    try:
-        from k9log.taint import TaintTracker
-        tracker = TaintTracker(log_path)
-        taint_result = tracker.analyze_taint_propagation()
-        tv = taint_result.get("violations", [])
-        tr = taint_result.get("taint_rate", 0)
-        ts = taint_result.get("total_tainted_steps", 0)
-        tm = len(taint_result.get("taint_map", {}))
-        console.print("\n[bold]Taint Analysis[/bold]  tainted_steps=" + str(ts) + "/" + str(tm) + " (" + str(int(100 * tr)) + "%)  violations=" + str(len(tv)))
-        if tv:
-            from collections import Counter
-            by_skill = Counter(v["skill"] for v in tv)
-            for skill, cnt in by_skill.most_common():
-                console.print("  " + skill + ": " + str(cnt) + " taint violation(s)")
-        else:
-            console.print("  [green]no taint violations[/green]")
-    except Exception as e:
-        console.print("\n[bold]Taint Analysis[/bold]  [yellow]unavailable: " + str(e) + "[/yellow]")
-
-    # 4. Metalearning
-    from k9log.metalearning import CausalMetaLearner
-    learner = CausalMetaLearner(log_path)
-    incidents = learner._extract_incidents()
-    candidates = learner._enumerate_candidates(incidents)
-    cover, _ = learner._find_minimum_cover(incidents, candidates)
-    console.print("\n[bold]Metalearning[/bold]  incidents=" + str(len(incidents)) + "  candidates=" + str(len(candidates)) + "  cover=" + str(len(cover)))
-    for mc in cover:
-        r = mc["rule"]
-        console.print("  [" + str(r.get("rule_type", "?")) + "] " + r["id"] + "  cut=Step#" + str(mc["cut_point"]) + "  fp=" + str(mc["false_positives"]))
-
-    # 5. Learned rules
-    lr_path = Path.home() / ".k9log" / "learned_rules.json"
-    if lr_path.exists():
-        lr = json.loads(lr_path.read_text(encoding="utf-8"))
-        console.print("\n[bold]Learned Rules[/bold]  " + str(len(lr["rules"])) + " rules  " + str(len(lr["sessions"])) + " sessions")
-        for rid, rule in lr["rules"].items():
-            console.print("  [" + str(rule.get("rule_type", "?")) + "] " + rid + "  learned=" + str(rule.get("learned_at", "?"))[:19])
-    else:
-        console.print("\n[bold]Learned Rules[/bold]  [yellow]not found[/yellow]")
-
-    # 6. Grants
-    grants_dir = Path.home() / ".k9log" / "grants"
-    active_g   = list(grants_dir.glob("*.json"))
-    suggested  = list((grants_dir / "suggested").glob("*.json")) if (grants_dir / "suggested").exists() else []
-    deprecated = list((grants_dir / "deprecated").glob("*.json")) if (grants_dir / "deprecated").exists() else []
-    console.print("\n[bold]Grants[/bold]  active=" + str(len(active_g)) + "  suggested=" + str(len(suggested)) + "  deprecated=" + str(len(deprecated)))
-
-    # 7. Fuse
-    fuse_state = Path.home() / ".k9log" / "fuse" / "state.json"
-    if fuse_state.exists():
-        fs = json.loads(fuse_state.read_text(encoding="utf-8"))
-        a = fs.get("active")
-        color = "red" if a else "green"
-        console.print("\n[bold]Fuse[/bold]  [" + color + "]active=" + str(a) + "[/" + color + "]  severity=" + str(fs.get("severity")))
-    else:
-        console.print("\n[bold]Fuse[/bold]  [dim]no state[/dim]")
+    # -- 6. Module availability -----------------------------------------------
+    console.print("\n[bold]Module Availability[/bold]")
+    for mod, label in [
+        ("k9log.logger","Logger"),("k9log.constraints","Constraints"),
+        ("k9log.verifier","Verifier"),("k9log.tracer","Tracer"),
+        ("k9log.report","Report"),("k9log.alerting","Alerting"),
+        ("k9log.taint","Taint analysis"),("k9log.metalearning","Metalearning"),
+    ]:
+        try:
+            __import__(mod)
+            console.print(f"  [green]OK[/green]  {label}")
+        except ImportError:
+            console.print(f"  [yellow]--[/yellow]  {label} unavailable")
 
     console.print()
 
-
-
-
-@main.group()
+@main.group(hidden=True)
 def task():
     """Task-scoped session grant management"""
     pass
@@ -1041,143 +961,11 @@ def task_stop():
     else:
         console.print("[yellow]No active session-scoped tasks found.[/yellow]")
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Merged from openclaw branch: fuse management, policy pack, html report
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-@main.group()
-def fuse():
-    """Circuit breaker (FUSE) management"""
-    pass
-
-
-@fuse.command()
-def status():
-    """Show current fuse state"""
-    from k9log.fuse import load_state, STATE_PATH
-    state = load_state()
-    console.print('\n[cyan]FUSE Status[/cyan]\n')
-    if state.get('active'):
-        console.print('[red bold]Status: ACTIVE (agent halted)[/red bold]')
-    elif state.get('armed') is False:
-        console.print('[yellow]Status: DISARMED[/yellow]')
-    else:
-        console.print('[green]Status: ARMED (ready, not triggered)[/green]')
-    if state.get('active'):
-        console.print(f"  Agent ID   : {state.get('agent_id', '-')}")
-        console.print(f"  Session ID : {state.get('session_id', '-')}")
-        console.print(f"  Severity   : {state.get('severity', '-')}")
-        console.print(f"  Scope      : {state.get('scope', '-')}")
-        console.print(f"  Mode       : {state.get('mode', '-')}")
-        console.print(f"  Reason     : {state.get('reason', '-')}")
-        console.print(f"  Types      : {state.get('trigger_types', [])}")
-        console.print(f"  Triggered  : {state.get('ts', '-')}")
-        console.print(f"\n  To resume: [bold]k9log fuse disarm[/bold]")
-    if not STATE_PATH.exists():
-        console.print('\n  [dim](No state file yet - fuse has never fired)[/dim]')
-
-
-@fuse.command()
-def disarm():
-    """Clear fuse state (allow agent to resume)"""
-    from k9log.fuse import disarm as _disarm, load_state
-    state = load_state()
-    if not state.get('active'):
-        console.print('[yellow]FUSE is not currently active.[/yellow]')
-    else:
-        _disarm()
-        console.print('[green]FUSE disarmed. Agent may resume.[/green]')
-        console.print('  Run [bold]k9log fuse arm[/bold] to re-enable fuse for future violations.')
-
-
-@fuse.command()
-def arm():
-    """Re-arm fuse so it can trigger on future violations"""
-    from k9log.fuse import arm as _arm
-    _arm()
-    console.print('[green]FUSE armed. Will trigger on next qualifying violation.[/green]')
-
-
-@main.group()
-def policy():
-    """Policy Pack management"""
-    pass
-
-
-@policy.command()
-def status():
-    """Show current active policy status"""
-    from k9log.policy_pack import get_active_policy, policy_hash, POLICY_PATH
-    pol = get_active_policy()
-    console.print('\n[cyan]Policy Pack Status[/cyan]\n')
-    if pol is None:
-        console.print('[yellow]No policy loaded.[/yellow]')
-        console.print('  Run: k9log policy load --path <file>')
-        console.print('  Using built-in defaults.')
-        return
-    h = policy_hash(pol)
-    console.print('[green]Policy loaded[/green]')
-    console.print(f'  ID      : {pol.policy_id}')
-    console.print(f'  Version : {pol.version}')
-    console.print(f'  Created : {pol.created_at}')
-    console.print(f'  Hash    : {h}')
-    console.print(f'  File    : {POLICY_PATH}')
-    fuse_enabled = pol.fuse.get('enabled', False)
-    console.print(f'  Fuse    : {"[red]ENABLED[/red]" if fuse_enabled else "[dim]disabled[/dim]"}')
-
-
-@policy.command()
-@click.option('--path', required=True, help='Path to policy JSON file')
-@click.option('--sig', default=None, help='Path to .sig file for HMAC verification')
-def load(path, sig):
-    """Load a policy file as the active policy"""
-    from k9log.policy_pack import (
-        load_policy, save_active_policy, policy_hash, verify_policy_signature
-    )
-    from k9log.decision import reset_decision_engine
-    if sig:
-        ok = verify_policy_signature(path, sig)
-        if not ok:
-            console.print('[red]Signature verification FAILED. Policy not loaded.[/red]')
-            return
-    pol = load_policy(path)
-    save_active_policy(pol)
-    reset_decision_engine()
-    h = policy_hash(pol)
-    console.print(f'[green]Policy loaded: {pol.policy_id} v{pol.version}[/green]')
-    console.print(f'  Hash: {h}')
-
-
-@policy.command()
-def pin():
-    """Output current policy hash (for reproducibility)"""
-    from k9log.policy_pack import get_active_policy, policy_hash
-    pol = get_active_policy()
-    if pol is None:
-        console.print('[yellow]No policy loaded. Hash: (none)[/yellow]')
-        return
-    console.print(policy_hash(pol))
-
-
-@main.command()
-@click.option('--output', default='k9log_report.html', help='Output file path')
-def report(output):
-    """Generate HTML audit report"""
-    from k9log.report import generate_report
-    log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
-    if not log_file.exists():
-        console.print('[yellow]No logs found[/yellow]')
-        return
-    console.print('[cyan]Generating report...[/cyan]')
-    result = generate_report(log_file, output)
-    if result:
-        console.print(f'[green]Report saved: {result}[/green]')
-
 
 
 # ── 联邦学习命令组 ──────────────────────────────────────────────────────────
 
-@main.group()
+@main.group(hidden=True)
 def federated():
     """联邦学习：匿名贡献 skill 行为统计，获得社区共享的风险画像。"""
     pass
@@ -1193,8 +981,9 @@ def federated_join_cmd():
 
     原始操作记录永远不会离开您的设备。数学保证，开源可审查。
     """
-    from k9log.wizard import federated_join
-    federated_join()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 @federated.command("leave")
@@ -1207,13 +996,14 @@ def federated_leave_cmd():
 @federated.command("status")
 def federated_status_cmd():
     """查看联邦学习参与状态。"""
-    from k9log.wizard import federated_status
-    federated_status()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
 
 # ── Skill 推荐命令组 ────────────────────────────────────────────────────────
 
-@main.group()
+@main.group(hidden=True)
 def skills():
     """Skill 因果推荐与 K 指数排行榜。"""
     pass
@@ -1232,9 +1022,9 @@ def skills_recommend(action, agent_type, top, json_out):
       k9log skills recommend --action EXECUTE --agent-type coding
       k9log skills recommend --top 10 --json-out
     """
-    from k9log.skill_recommender import SkillRecommender
-    log_file = Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
-    engine = SkillRecommender(log_file)
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
     ctx = {}
     if action:     ctx["action_class"] = action.upper()
@@ -1277,9 +1067,9 @@ def skills_recommend(action, agent_type, top, json_out):
 @click.option("--json-out", is_flag=True, help="输出原始 JSON")
 def skills_ranking(top, json_out):
     """K 指数全局排行榜（不考虑上下文，公平对比所有 skill）。"""
-    from k9log.skill_recommender import SkillRecommender
-    log_file = Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
-    ranking  = SkillRecommender(log_file).k_ranking(top)
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
     if json_out:
         import json as _json
@@ -1320,10 +1110,9 @@ def skills_diagnose(skill_hash, action, agent_type):
     示例：
       k9log skills diagnose 3f9a8b2c --action EXECUTE
     """
-    from k9log.skill_recommender import diagnose_skill
-    ctx = {}
-    if action:     ctx["action_class"] = action.upper()
-    if agent_type: ctx["agent_type"]   = agent_type.lower()
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
 
     d = diagnose_skill(skill_hash, context=ctx or None)
 

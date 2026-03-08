@@ -15,10 +15,23 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 K9log Core - @k9 decorator and CIEU recording engine
+
+Log level control
+-----------------
+Set the environment variable K9LOG_LEVEL to control verbosity:
+
+  K9LOG_LEVEL=DEBUG   -- emit detailed per-call trace to the k9log logger
+  K9LOG_LEVEL=INFO    -- emit violation summaries only (default)
+  K9LOG_LEVEL=OFF     -- suppress all k9log diagnostic output
+
+Example (PowerShell):
+  $env:K9LOG_LEVEL = "DEBUG"
+  python my_agent.py
 """
 import time
 import functools
 import inspect
+import logging
 import os
 import socket
 from datetime import datetime, timezone
@@ -27,6 +40,12 @@ from k9log.logger import get_logger
 from k9log.identity import get_agent_identity
 from k9log.constraints import load_constraints, check_compliance
 from k9log.redact import redact_params, redact_context, redact_result, _redact_value
+
+# -- Log level control --------------------------------------------------------
+_K9_LEVEL = os.environ.get('K9LOG_LEVEL', 'INFO').upper()
+_DEBUG   = _K9_LEVEL == 'DEBUG'
+_SILENT  = _K9_LEVEL == 'OFF'
+_k9_log  = logging.getLogger('k9log.core')
 
 def k9(func=None, **inline_constraints):
     """
@@ -50,19 +69,29 @@ def k9(func=None, **inline_constraints):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             start_time = time.time()
-            
+
+            if _DEBUG:
+                _k9_log.debug('[k9] -> entering %s', f.__name__)
+
             # Get logger and identity
             logger = get_logger()
             identity = get_agent_identity()
-            
+
             # 1. Capture X_t (Context)
             x_t = _capture_context(f, identity)
-            
+
             # 2. Capture U_t (Action)
             u_t = _capture_action(f, args, kwargs)
-            
+
+            if _DEBUG:
+                _k9_log.debug('[k9] U_t params: %s', list(u_t['params'].keys()))
+
             # 3. Load Y*_t (Constraints)
             y_star_t = _load_constraints(f, inline_constraints)
+
+            if _DEBUG:
+                _k9_log.debug('[k9] constraints loaded: hash=%s',
+                              y_star_t.get('hash', 'none')[:16])
             
             # 4. Execute function and capture Y_t+1
             execution_error = None
@@ -109,8 +138,24 @@ def k9(func=None, **inline_constraints):
                     'Y_t+1': y_t_plus_1,
                     'R_t+1': r_t_plus_1
                 }
-                
-                logger.write_cieu(cieu_record)
+
+                if _DEBUG:
+                    status = 'PASS' if r_t_plus_1.get('passed') else 'FAIL'
+                    _k9_log.debug('[k9] %s %s -- %.3fs -- severity=%.2f',
+                                  status, f.__name__,
+                                  r_t_plus_1['duration_sec'],
+                                  r_t_plus_1.get('overall_severity', 0.0))
+                    for v in r_t_plus_1.get('violations', []):
+                        _k9_log.debug('[k9]   violation: %s on field=%s',
+                                      v.get('type'), v.get('field'))
+                elif not _SILENT and not r_t_plus_1.get('passed', True):
+                    _k9_log.info('[k9] violation in %s: %s',
+                                 f.__name__,
+                                 ', '.join(v.get('type', '?')
+                                           for v in r_t_plus_1.get('violations', [])))
+
+                if not _SILENT:
+                    logger.write_cieu(cieu_record)
 
                 # 8. Trigger alerting on violations
                 if not r_t_plus_1.get('passed', True):
@@ -123,6 +168,11 @@ def k9(func=None, **inline_constraints):
             
             return result
         
+        # Remove __wrapped__ to prevent bypass via direct original function call
+        try:
+            del wrapper.__wrapped__
+        except AttributeError:
+            pass
         return wrapper
     
     # Handle both @k9 and @k9(...) syntax
@@ -171,11 +221,31 @@ def _capture_action(func, args, kwargs):
     sig = inspect.signature(func)
     bound_args = sig.bind(*args, **kwargs)
     bound_args.apply_defaults()
-    
+
+    import json as _json
+    def _safe(v):
+        if v is None or isinstance(v, (bool, int, float, str)):
+            return v
+        if isinstance(v, (list, tuple)):
+            return [_safe(i) for i in v]
+        if isinstance(v, dict):
+            return {str(k): _safe(val) for k, val in v.items()}
+        try:
+            _json.dumps(v)
+            return v
+        except (TypeError, ValueError):
+            return f'<{type(v).__name__}>'
+
+    safe_params = {
+        k: _safe(v)
+        for k, v in bound_args.arguments.items()
+        if k != 'self'
+    }
+
     return {
         'skill': func.__name__,
         'skill_module': func.__module__,
-        'params': dict(bound_args.arguments)
+        'params': safe_params
     }
 
 def _load_constraints(func, inline_constraints):

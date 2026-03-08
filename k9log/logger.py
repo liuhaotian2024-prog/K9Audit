@@ -26,13 +26,19 @@ class CIEULogger:
         self._load_last_hash()
 
     def _load_last_hash(self):
-        """Load the last valid hash from existing log file (reads last 200 lines)."""
+        """Load the last valid hash from existing log file.
+
+        Scans the file from the end line-by-line until a record with
+        _integrity is found. Guarantees correctness even for very large logs
+        -- the old 200-line cap could silently miss the last valid record
+        if the tail was full of SESSION_END or corrupt lines.
+        """
         if not self.log_file.exists():
             return
         try:
             with open(self.log_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
-            for line in reversed(lines[-200:]):
+            for line in reversed(lines):
                 line = line.strip()
                 if not line:
                     continue
@@ -45,7 +51,10 @@ class CIEULogger:
                 except Exception:
                     continue
         except Exception as e:
-            print(f'Warning: Could not load last hash: {e}')
+            import logging
+            logging.getLogger('k9log').warning(
+                'k9log: could not load last hash from %s: %s', self.log_file, e
+            )
 
     def write_cieu(self, record):
         """Write CIEU record with hash chain.
@@ -112,7 +121,13 @@ class CIEULogger:
             pass
 
     def _write_record_locked(self, record):
-        """Compute hash and append record. Must be called with self.lock held."""
+        """Compute hash and append record. Must be called with self.lock held.
+
+        Write failures (disk full, permissions, NFS drop) are caught and
+        logged -- they must never propagate to the decorated business function.
+        Hash chain state is only advanced on successful write.
+        """
+        import logging
         canonical = self._canonicalize(record)
         current_hash = hashlib.sha256(
             (self.prev_hash + canonical).encode()
@@ -122,10 +137,16 @@ class CIEULogger:
             'prev_hash':  self.prev_hash,
             'seq':        self.seq_counter,
         }
-        with open(self.log_file, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(record, ensure_ascii=False) + '\n')
-        self.prev_hash = current_hash
-        self.seq_counter += 1
+        try:
+            with open(self.log_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+            self.prev_hash = current_hash
+            self.seq_counter += 1
+        except Exception as e:
+            logging.getLogger('k9log').error(
+                'k9log: failed to write CIEU record (seq=%s): %s',
+                self.seq_counter, e
+            )
 
     def _maybe_write_fuse_inline(self, violation_record):
         """Evaluate fuse via DecisionEngine and write FUSE record inline.
@@ -220,7 +241,7 @@ class CIEULogger:
         # ── Reset hash chain for the new file ─────────────────────────────
         # Each rotated file is an independent, self-verifiable chain segment.
         self.prev_hash = '0' * 64
-        print(f'Log rotated: {archive_name}.gz')
+        logging.getLogger('k9log').info('k9log: log rotated to %s.gz', archive_name)
 
     def finalize_session(self, session_id=None):
         """Write session end marker with root hash."""        # ── 统计本次 session ──────────────────────────────────────────────────
@@ -293,10 +314,14 @@ class CIEULogger:
 _logger = None
 
 
+_logger_lock = threading.Lock()
+
 def get_logger():
-    """Get global logger instance."""
+    """Get global logger instance (thread-safe singleton)."""
     global _logger
     if _logger is None:
-        _logger = CIEULogger()
+        with _logger_lock:
+            if _logger is None:  # double-checked locking
+                _logger = CIEULogger()
     return _logger
 
