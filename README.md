@@ -18,6 +18,8 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 
 *Statistical AI moves fast. Causal AI makes sure it doesn't go off the rails — and when it does, the evidence is ironclad.*
 
+*AI coding agent 写坏了代码？K9 在落盘瞬间告警，100ms 内发送根因，错过告警也可一键溯源。从分钟级排查到秒级定位。*
+
 ---
 
 ## Contents
@@ -97,6 +99,25 @@ seq=451  2026-03-04 16:59:22 UTC
 
 ---
 
+## K9 Audit 首次让生成式 AI 代理的内部连续行为从黑箱猜测转向瞬间可现的铁证链条
+
+当 AI coding agent 帮你写代码出了问题，K9 做三件其他工具都做不到的事：
+
+**1. 写完就检查，出错立即告警**
+AI 每次写文件，K9 在写入瞬间检查约束。违规立即发告警——不是等测试失败，而是代码刚落盘就知道有问题。
+
+**2. 告警同时附上根因**
+告警第一条：违规详情。告警第二条（100ms 后自动）：因果链追溯，直接告诉你是哪一步、哪个文件、缺了什么。
+
+**3. 错过告警？一键溯源**
+去睡觉了，或者错过了告警——所有操作都已记录在 CIEU 因果链里。回来一条命令秒级定位根因：
+```
+k9log causal --last
+```
+
+→ [完整案例：missing import logging，从分钟级到秒级](./docs/causal_tracing.md)
+
+---
 ## What K9 Audit is
 
 Every action monitored by K9 Audit produces a **CIEU record** — a rigorously structured five-tuple written into the causal evidence ledger:
@@ -112,7 +133,6 @@ Every action monitored by K9 Audit produces a **CIEU record** — a rigorously s
 This is a fundamentally different category of infrastructure: **tamper-evident causal evidence**.
 
 ---
-
 ## What K9 Audit is not
 
 - Not an interception or firewall system *(Phase 1: zero-disruption observability only)*
