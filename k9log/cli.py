@@ -86,14 +86,65 @@ def trace(step, last):
     else:
         console.print('[yellow]Please specify --step=N or --last[/yellow]')
 
-@main.command(hidden=True)
-@click.option('--step', type=int, required=True, help='Incident step number')
-@click.option('--export', is_flag=True, help='Export DAG to JSON')
-def causal(step, export):
-    """Analyze causal chain and identify root causes"""
-    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
-    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
-    return
+@main.command()
+@click.option('--step', type=int, default=None, help='Step number to analyze')
+@click.option('--last', is_flag=True, default=False, help='Auto-find most recent failure')
+@click.option('--export', type=click.Path(), default=None, help='Export causal analysis to JSON')
+def causal(step, last, export):
+    """Analyze causal chain and find root cause of a failure.
+
+    Examples:
+
+      k9log causal --last          # auto-find most recent failure
+
+      k9log causal --step 7        # analyze specific step
+
+      k9log causal --last --export causal.json
+    """
+    from k9log.causal_analyzer import CausalChainAnalyzer
+
+    log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
+    if not log_file.exists():
+        console.print('[yellow]No logs found. Run some @k9-decorated functions first.[/yellow]')
+        return
+
+    analyzer = CausalChainAnalyzer(log_file)
+
+    if not analyzer.records:
+        console.print('[yellow]No records found in ledger.[/yellow]')
+        return
+
+    # Resolve which step to analyze
+    if last:
+        # Find the most recent execution failure or constraint violation
+        incident_step = None
+        for idx in range(len(analyzer.records) - 1, -1, -1):
+            rec = analyzer.records[idx]
+            r = rec.get('R_t+1', {})
+            if not r.get('passed', True) or rec.get('_has_execution_failure'):
+                incident_step = idx
+                break
+        if incident_step is None:
+            console.print('[green]No failures found in ledger. All steps passed.[/green]')
+            return
+        console.print(f'[cyan]Auto-detected failure at Step #{incident_step}[/cyan]')
+    elif step is not None:
+        incident_step = step
+    else:
+        console.print('[red]Specify --last or --step N[/red]')
+        console.print('  k9log causal --last')
+        console.print('  k9log causal --step 7')
+        return
+
+    analyzer.build_causal_dag()
+    analyzer.visualize_causal_chain(incident_step)
+
+    if export:
+        result = analyzer.find_root_causes(incident_step)
+        import json as _json
+        out = pathlib.Path(export)
+        out.write_text(_json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8')
+        console.print(f'[green]Causal analysis exported to {export}[/green]')
 
 @main.command(hidden=True)
 @click.option('--policy', type=click.Path(exists=True), required=True, help='Policy config file (JSON)')
