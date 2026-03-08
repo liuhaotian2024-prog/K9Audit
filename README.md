@@ -292,6 +292,15 @@ Full cryptographic and DAG structure specification: [docs/CIEU_spec.md](./docs/C
 
 ---
 
+
+## Patent Notice
+
+The CIEU architecture is covered by U.S. Provisional Patent Application No. 63/981,777:
+*"Causal Intervention-Effect Unit (CIEU): A Universal Causal Record Architecture for Audit and Governance of Arbitrary Processes"*
+
+Users of K9log under AGPL-3.0 receive patent rights per AGPL-3.0 Section 11.
+For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md](PATENTS.md).
+
 ## License
 
 AGPL-3.0. See [LICENSE](./LICENSE).
