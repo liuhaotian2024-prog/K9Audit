@@ -68,3 +68,6 @@ output/
 *.html
 .coverage
 
+
+AGENTS.md
+
