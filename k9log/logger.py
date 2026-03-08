@@ -4,6 +4,7 @@
 """
 K9log Logger - CIEU log writer with hash chain and verification
 """
+import logging
 import json
 import hashlib
 import gzip
