@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "k9audit-hook"
+version = "0.2.0"
+description = "K9 Audit with Hook Connector — for Claude Code and hook-compatible agents"
+license = {text = "AGPL-3.0"}
+authors = [{name = "Haotian Liu"}]
+requires-python = ">=3.11"
+dependencies = ["click>=8.0", "rich>=13.0", "requests>=2.28", "cryptography>=41.0"]
+
+[project.scripts]
+k9log = "k9log.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["k9log*"]

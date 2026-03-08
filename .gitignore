@@ -1,0 +1,64 @@
+# ============================================================
+# K9 Audit — .gitignore
+# Open source boundary: L1 audit layer only (AGPL-3.0)
+# ============================================================
+
+# ── Closed-source commercial layers ─────────────────────────
+# These files must never be committed. Do not remove these lines.
+k9log/counterfactual.py
+k9log/taint.py
+k9log/federated.py
+k9log/skill_recommender.py
+
+# ── Treatment/governance layer (not part of audit core) ─────
+k9log/fuse.py
+k9log/decision.py
+k9log/mcp_server.py
+k9log/policy_pack.py
+k9log/metalearning.py
+k9log/skill_source.py
+k9log/wizard.py
+k9log/governance/constitutional_gate.py
+k9log/governance/grants.py
+k9log/governance/verdict.py
+
+# ── Internal tooling ────────────────────────────────────────
+build_challenge_pack.py
+push_to_github.ps1
+layer4_verify.py
+layer5_stability.py
+STAGED_ROLLOUT.md
+contract_test.py
+clinejection_demo.py
+redteam_test.py
+smoke_test.py
+security_hardening_check.py
+capability_demo.py
+
+# ── Local runtime state ──────────────────────────────────────
+config/
+grants/
+.env
+.env.*
+*.local
+~/.k9log/
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ── OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
