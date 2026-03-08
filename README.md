@@ -202,6 +202,13 @@ detected at `on_tool_start` (pre-execution) and the outcome is recorded at
 
 ---
 
+## AI coding agent bug tracing
+
+20 minutes of log archaeology → 10 seconds with `k9log causal --last`.
+
+→ [Real case: how K9 traced a missing import through 3 steps](./docs/causal_tracing.md)
+
+---
 ## CLI reference
 
 ```bash
