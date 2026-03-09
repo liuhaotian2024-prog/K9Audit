@@ -76,11 +76,29 @@ def _hash_value(value):
     return "sha256:" + hashlib.sha256(s.encode()).hexdigest()[:12]
 
 
+# Sensitive patterns (API keys, tokens, SSNs, credit cards) are always short
+# strings. File contents, code, or any param value longer than this threshold
+# is virtually never a credential — scanning it character-by-character with 9
+# regexes causes O(n) × 9 latency that ruins Claude Code hook performance.
+# Strategy: scan only the first REDACT_SCAN_LIMIT characters; if the value is
+# longer we append a truncation marker so the stored record clearly shows the
+# original was larger.
+_REDACT_SCAN_LIMIT = 2000  # chars — covers any realistic credential/token
+
+
 def _redact_value(value):
     s = str(value)
+    if len(s) <= _REDACT_SCAN_LIMIT:
+        for pattern, replacement in SENSITIVE_VALUE_PATTERNS:
+            s = pattern.sub(replacement, s)
+        return s
+    # Large value: scan only the head (credentials appear at the start of a
+    # value, e.g. "Bearer sk-..."), leave the tail untouched.
+    head = s[:_REDACT_SCAN_LIMIT]
+    tail = s[_REDACT_SCAN_LIMIT:]
     for pattern, replacement in SENSITIVE_VALUE_PATTERNS:
-        s = pattern.sub(replacement, s)
-    return s
+        head = pattern.sub(replacement, head)
+    return head + tail
 
 
 def redact_params(params, level=None):

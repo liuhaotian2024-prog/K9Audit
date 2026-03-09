@@ -1,4 +1,4 @@
-﻿# 🐕‍🦺 K9 Audit
+# 🐕‍🦺 K9 Audit
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
@@ -100,7 +100,7 @@ seq=451  2026-03-04 16:59:22 UTC
 
 ─── Y*_t  Intent Contract ─────────────────────────
   constraint: deny_content → ["staging.internal"]
-  source:     intents/write_config.json
+  source:     config/write_config.json
 
 ─── Y_t+1  Outcome ────────────────────────────────
   status:   recorded  (executed with silent deviation)
@@ -234,36 +234,60 @@ def write_config(path: str, content: dict) -> bool:
 
 Every call now automatically writes a CIEU record to the Ledger. If the agent violates a constraint, execution continues — but a high-severity deviation is permanently flagged in the chain.
 
-### Option 3: Intent contract file (decoupled rules)
+### Option 3: Config file (decoupled rules, no decorator needed)
 
-File: `~/.k9log/intents/write_config.json`
+File: `~/.k9log/config/write_config.json`
 
 ```json
 {
   "skill": "write_config",
   "constraints": {
     "deny_content": ["staging.internal", "*.internal"],
-    "allowed_paths": ["./project/**"],
-    "action_class": "WRITE"
-  }
+    "allowed_paths": ["./project/**"]
+  },
+  "version": "1.0.0"
 }
 ```
 
+Then use `@k9` with no arguments — constraints are loaded automatically from the config file:
+
+```python
+@k9
+def write_config(path: str, content: str) -> bool:
+    ...
+```
+
+The config file takes effect immediately with no code changes. Useful for applying constraints to functions you can't modify, or for storing rules outside source control.
+
 ### Option 4: LangChain callback handler
 
-For agents built with LangChain — zero changes to your chain or agent logic:
+For agents built with LangChain, the recommended approach is to wrap your tool functions with `@k9` directly — this requires zero changes to your chain or agent logic:
+
+```python
+from langchain.tools import Tool
+from k9log import k9, set_agent_identity
+
+set_agent_identity(agent_name='LangChainAgent')
+
+@k9(query={'max_length': 500}, deny_content=["DROP TABLE"])
+def search_tool(query: str) -> str:
+    return results  # your existing logic unchanged
+
+tool = Tool(name="search", func=search_tool, description="Search for information")
+# Pass tool to your agent as normal — every call is now audited
+```
+
+Alternatively, `K9CallbackHandler` can be passed to LangChain's `callbacks=` parameter. However, this approach relies on LangChain's internal callback protocol and requires `langchain` to be installed separately:
 
 ```python
 from k9log.langchain_adapter import K9CallbackHandler
 
 handler = K9CallbackHandler()
-
-# Works with agents, chains, or individual tools
 agent = initialize_agent(tools, llm, callbacks=[handler])
 chain = LLMChain(llm=llm, prompt=prompt, callbacks=[handler])
 ```
 
-Every tool call automatically writes a CIEU record. Constraint violations are detected at `on_tool_start` (pre-execution) and the outcome is recorded at `on_tool_end` / `on_tool_error`. No decorator or hook configuration needed.
+**Note:** `K9CallbackHandler` requires LangChain ≥ 0.1 and is designed to be passed to LangChain — do not call `on_tool_start` / `on_tool_end` manually, as these methods require LangChain's internal `run_id` argument.
 
 → [Integration guides: Cursor, AutoGen, CrewAI, OpenClaw, and more](./docs/integrations.md)
 
@@ -625,4 +649,3 @@ For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md]
 AGPL-3.0. See [LICENSE](./LICENSE).
 
 Copyright (C) 2026 Haotian Liu
-

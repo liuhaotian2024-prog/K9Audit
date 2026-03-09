@@ -66,6 +66,65 @@ def k9(func=None, **inline_constraints):
             return result
     """
     def decorator(f):
+        # ── Async path ──────────────────────────────────────────────────────
+        if inspect.iscoroutinefunction(f):
+            @functools.wraps(f)
+            async def async_wrapper(*args, **kwargs):
+                start_time = time.time()
+                logger = get_logger()
+                identity = get_agent_identity()
+                x_t = _capture_context(f, identity)
+                u_t = _capture_action(f, args, kwargs)
+                y_star_t = _load_constraints(f, inline_constraints)
+                execution_error = None
+                y_t_plus_1 = None
+                try:
+                    result = await f(*args, **kwargs)
+                    y_t_plus_1 = {'result': result, 'status': 'success'}
+                except Exception as e:
+                    execution_error = str(e)
+                    y_t_plus_1 = {'status': 'error', 'error': execution_error}
+                    raise
+                finally:
+                    end_time = time.time()
+                    r_t_plus_1 = _assess_compliance(
+                        u_t['params'], y_t_plus_1, y_star_t, execution_error
+                    )
+                    r_t_plus_1['duration_sec'] = end_time - start_time
+                    x_t = redact_context(x_t)
+                    u_t_redacted = dict(u_t)
+                    u_t_redacted['params'] = redact_params(u_t['params'])
+                    y_t_plus_1 = redact_result(y_t_plus_1)
+                    if r_t_plus_1.get('violations'):
+                        for v in r_t_plus_1['violations']:
+                            if 'actual' in v and isinstance(v['actual'], str):
+                                v['actual'] = _redact_value(v['actual'])
+                            if 'message' in v and isinstance(v['message'], str):
+                                v['message'] = _redact_value(v['message'])
+                    cieu_record = {
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'X_t': x_t,
+                        'U_t': u_t_redacted,
+                        'Y_star_t': y_star_t,
+                        'Y_t+1': y_t_plus_1,
+                        'R_t+1': r_t_plus_1
+                    }
+                    if not _SILENT:
+                        logger.write_cieu(cieu_record)
+                    if not r_t_plus_1.get('passed', True):
+                        try:
+                            from k9log.alerting import get_alert_manager
+                            get_alert_manager().on_violation(cieu_record)
+                        except Exception:
+                            pass
+                return result
+            try:
+                del async_wrapper.__wrapped__
+            except AttributeError:
+                pass
+            return async_wrapper
+
+        # ── Sync path (original) ────────────────────────────────────────────
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             start_time = time.time()

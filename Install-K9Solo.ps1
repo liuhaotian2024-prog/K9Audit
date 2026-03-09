@@ -19,6 +19,7 @@ Write-Step "Step 0/5: 确定路径"
 
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HookPy     = Join-Path $ScriptDir "hook.py"
+$HookPostPy = Join-Path $ScriptDir "hook_post.py"
 $K9LogDir   = Join-Path $env:USERPROFILE ".k9log"
 
 Write-OK "安装目录 : $ScriptDir"
@@ -26,6 +27,8 @@ Write-OK "K9日志   : $K9LogDir"
 
 if (-not (Test-Path $HookPy)) { Write-Fail "找不到 hook.py，请确认脚本和 hook.py 在同一目录" }
 Write-OK "找到 hook.py"
+if (-not (Test-Path $HookPostPy)) { Write-Fail "找不到 hook_post.py，请确认脚本和 hook_post.py 在同一目录" }
+Write-OK "找到 hook_post.py"
 
 # ── Step 1：检查 Python ───────────────────────────────────────
 Write-Step "Step 1/5: 检查 Python"
@@ -97,14 +100,28 @@ Write-OK "目录结构初始化完成"
 # ── Step 4：配置 Claude Code settings.json ────────────────────
 Write-Step "Step 4/5: 配置 Claude Code"
 
+# NOTE: This installer writes hooks to %APPDATA%\Claude\settings.json,
+# which is Claude Code's GLOBAL user-level config. This means K9 Audit
+# will run on EVERY Claude Code project on this machine automatically —
+# no per-project setup needed.
+#
+# If you prefer per-project control instead, skip this step and manually
+# add the hooks block to .claude/settings.json at each project root.
+# See: https://github.com/liuhaotian2024-prog/K9Audit/blob/main/docs/integrations.md#claude-code
+Write-Host "   (注: 写入全局 Claude Code 配置 — 对本机所有项目生效)" -ForegroundColor DarkGray
+
 $ClaudeDir      = Join-Path $env:APPDATA "Claude"
 $ClaudeSettings = Join-Path $ClaudeDir "settings.json"
 
 $hookConfig = @{
     hooks = @{
-        PreToolUse = @(@{
+        PreToolUse  = @(@{
             matcher = "*"
             hooks   = @(@{ type = "command"; command = "$python `"$HookPy`"" })
+        })
+        PostToolUse = @(@{
+            matcher = "*"
+            hooks   = @(@{ type = "command"; command = "$python `"$HookPostPy`"" })
         })
     }
 }
@@ -117,7 +134,8 @@ if (Test-Path $ClaudeSettings) {
     try {
         $existing = Get-Content $ClaudeSettings -Raw | ConvertFrom-Json -AsHashtable
         if (-not $existing.hooks) { $existing["hooks"] = @{} }
-        $existing["hooks"]["PreToolUse"] = $hookConfig.hooks.PreToolUse
+        $existing["hooks"]["PreToolUse"]  = $hookConfig.hooks.PreToolUse
+        $existing["hooks"]["PostToolUse"] = $hookConfig.hooks.PostToolUse
         $existing | ConvertTo-Json -Depth 10 | Out-File $ClaudeSettings -Encoding UTF8
         Write-OK "已合并到现有 settings.json"
     } catch {
