@@ -78,8 +78,11 @@ Violations are flagged automatically and alerts fire in real time.
 
 ## Cursor
 
-Cursor does not expose a native hook layer, but you can audit any tool or
-function it calls by wrapping it with `@k9`.
+Cursor does not expose a native hook layer, so K9 Audit cannot intercept Cursor's own internal file writes or command executions. **What `@k9` can audit is the Python functions you write and call yourself** — not the actions Cursor takes on your behalf through its built-in editor tooling.
+
+This means coverage in Cursor is partial by design: if Cursor directly writes a file outside your instrumented code path, that write will not appear in the Ledger. For full-coverage auditing of an AI coding agent, use the Claude Code hook (Option 1 in the README Quick Start), which intercepts at the tool-call layer.
+
+Use Cursor integration when you want to audit specific business-logic functions that your Cursor-assisted code calls — for example, payment processing, config writes, or database mutations.
 
 **Step 1 — Install:**
 

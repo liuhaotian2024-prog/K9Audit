@@ -22,6 +22,19 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 
 ---
 
+## Quick navigation
+
+**Just want to get started?**
+→ [Claude Code user](#option-1-claude-code--zero-config-hook-recommended) · [LangChain / AutoGen / CrewAI](#works-with) · [Any Python agent](#option-2-python-decorator-non-invasive-tracing)
+
+**Evaluating for your team or enterprise?**
+→ [What K9 Audit is](#what-k9-audit-is) · [How it differs from LangSmith / Langfuse](#how-k9-audit-differs) · [Trust boundary](#what-k9-audit-is-not) · [FAQ](#faq)
+
+**Already integrated, going deeper?**
+→ [Constraint syntax](#constraint-syntax-reference) · [Querying the Ledger](#querying-the-ledger-directly) · [CI/CD gate](#cicd-gate-failing-a-pipeline-on-violations) · [Real-time alerts](#real-time-audit-alerts)
+
+---
+
 ## Contents
 
 - [Why causal auditing](#why-causal-auditing)
@@ -38,7 +51,7 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 - [CLI reference](#cli-reference)
 - [Real-time audit alerts](#real-time-audit-alerts)
 - [Architecture](#architecture)
-- [FAQ](#faq)
+- [FAQ](#faq) — performance · data privacy · AGPL · Python version · crash recovery · format stability
 - [The K9 Hard Case Challenge](#the-k9-hard-case-challenge)
 - [Ledger format](#ledger-format)
 - [License](#license)
@@ -126,6 +139,9 @@ This is a fundamentally different category of infrastructure: **tamper-evident c
 - Not an interception or firewall system *(Phase 1: zero-disruption observability only)*
 - Not an LLM-as-judge platform — it consumes zero tokens
 - Not a source of agent crashes or execution interruptions
+- **Not omniscient** — K9 Audit only records actions that pass through a `@k9` decorator or the Claude Code hook. Any code path that bypasses instrumentation is invisible to the Ledger.
+
+**Trust boundary:** The SHA256 hash chain proves that *recorded* evidence has not been tampered with after the fact. It does not prove that *all* actions were recorded. Coverage depends on how completely you instrument your agent. Use `k9log health` to see which skills are `UNCOVERED` and add constraints to close gaps.
 
 In this phase, K9 Audit does one thing perfectly: turn hard-to-trace AI deviations into traceable, verifiable mathematics. Record, trace, verify, report. The evidence layer that everything else can be built on top of.
 
@@ -372,6 +388,32 @@ print(f"{len(violations)} violations total, {len(critical)} critical")
 
 On Windows the path is `C:\Users\<username>\.k9log\logs\k9log.cieu.jsonl`.
 
+**Multi-machine and team aggregation**
+
+Each machine maintains its own local Ledger. In Phase 1 there is no built-in central server. To aggregate records from multiple engineers or CI runs, collect the JSONL files and merge them in Python:
+
+```python
+import json
+from pathlib import Path
+
+# Collect ledger files from each machine / CI artifact
+ledger_files = [
+    Path("machine_alice/k9log.cieu.jsonl"),
+    Path("machine_bob/k9log.cieu.jsonl"),
+    Path("ci_run_447/k9log.cieu.jsonl"),
+]
+
+all_records = []
+for f in ledger_files:
+    all_records += [json.loads(l) for l in f.read_text().splitlines() if l.strip()]
+
+violations = [r for r in all_records if not r.get("R_t+1", {}).get("passed", True)]
+print(f"{len(all_records)} total records across {len(ledger_files)} sources")
+print(f"{len(violations)} violations")
+```
+
+Note: merging JSONL files from different machines breaks the per-machine hash chain. `k9log verify-log` should be run **per file before merging** — verify each machine's chain individually, then merge for aggregate analysis. The merged file is for analysis only, not for chain verification.
+
 ---
 
 ## CLI reference
@@ -529,6 +571,26 @@ In this phase, K9 Audit is designed for zero-disruption observability. Deviation
 Records are written to `~/.k9log/logs/k9log.cieu.jsonl` — one JSON object per line, hash-chained, UTF-8 encoded. Each CIEU record is approximately 500 bytes. Ten thousand records occupy roughly 5MB. Run `k9log verify-log` at any time to verify chain integrity.
 
 On Windows, `~` resolves to `C:\Users\<your-username>`, so the full path is `C:\Users\<your-username>\.k9log\logs\k9log.cieu.jsonl`.
+
+**Does any data leave my machine?**
+
+No. The Ledger is written entirely to local disk. K9 Audit makes no network calls unless you explicitly configure an alert channel (Telegram, Slack, Discord, or webhook). Alert payloads contain only the CIEU record fields — no source code, no file contents beyond what you pass as function parameters.
+
+**What are the AGPL-3.0 implications for commercial use?**
+
+AGPL-3.0 allows you to use K9 Audit in commercial environments without restriction — you are not required to open-source your own agent code. The copyleft obligation only applies if you **distribute a modified version of K9 Audit itself** to third parties. Internal use, SaaS deployments, and CI/CD pipelines are all permitted. For OEM embedding or white-labeling, contact liuhaotian2024@gmail.com for a commercial license.
+
+**Which Python versions are supported?**
+
+Python 3.11 and above. Earlier versions lack some type-hinting and `tomllib` standard library features that K9 Audit uses internally. Python 3.10 support is on the roadmap.
+
+**What happens if the k9log process crashes mid-run?**
+
+`@k9` writes each record synchronously before the decorated function returns. If the process crashes between the pre-call and post-call write, that record will be absent from the Ledger — the chain will show a gap detectable by `k9log verify-log`. Your agent's execution is unaffected: `@k9` never raises exceptions to the caller, and a crash in the audit layer does not propagate.
+
+**Is the CIEU record format stable? Will old Ledger files still work after upgrades?**
+
+The core five-tuple fields (`X_t`, `U_t`, `Y_star_t`, `Y_t+1`, `R_t+1`) are stable and will remain readable across v0.x releases. Additional fields may be added in future versions but existing fields will not be renamed or removed without a major version bump. The full field specification is in [docs/CIEU_spec.md](./docs/CIEU_spec.md).
 
 ---
 
