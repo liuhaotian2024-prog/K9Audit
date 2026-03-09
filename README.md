@@ -32,7 +32,9 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 - [Installation](#installation)
 - [Works with](#works-with)
 - [Quick start](#quick-start)
+- [Constraint syntax reference](#constraint-syntax-reference)
 - [AI coding agent bug tracing](#ai-coding-agent-bug-tracing)
+- [Querying the Ledger directly](#querying-the-ledger-directly)
 - [CLI reference](#cli-reference)
 - [Real-time audit alerts](#real-time-audit-alerts)
 - [Architecture](#architecture)
@@ -293,9 +295,82 @@ def process(amount: float, recipient: str, env: str, query: str) -> dict:
 
 Constraints can also be stored in `~/.k9log/config/<function_name>.json` to keep them out of your source code. The decorator takes priority over the config file if both exist.
 
+**Custom constraint types**
+
+If the built-in types above don't cover your use case, register your own:
+
+```python
+from k9log.constraints import register_constraint
+
+@register_constraint("allowed_domains")
+def check_allowed_domains(param_name, value, rule_value):
+    domain = str(value).split("@")[-1]
+    if domain not in rule_value:
+        return {
+            'type': 'domain_violation',
+            'field': param_name,
+            'severity': 0.9,
+            'message': f'{param_name} domain {domain!r} not in allowed list'
+        }
+    return None  # no violation
+
+@k9(recipient={'allowed_domains': ['company.com', 'partner.org']})
+def transfer(amount, recipient):
+    ...
+```
+
+**Important:** `register_constraint` is process-scoped — registrations live only for the current Python process. To make custom constraints available everywhere, create a `k9_plugins.py` file at your project root and import it at agent startup:
+
+```python
+# k9_plugins.py  — import this once at startup
+from k9log.constraints import register_constraint
+
+@register_constraint("allowed_domains")
+def check_allowed_domains(param_name, value, rule_value):
+    ...
+```
+
+```python
+# agent_main.py or your entry point
+import k9_plugins  # registers all custom constraints
+from myagent import run
+run()
+```
+
 20 minutes of log archaeology → 10 seconds with `k9log causal --last`.
 
 → [Real case: how K9 traced a missing import through 3 steps](./docs/causal_tracing.md)
+
+---
+
+## Querying the Ledger directly
+
+The Ledger is a plain JSONL file — one record per line. You can query it directly from Python without any special API:
+
+```python
+import json
+from pathlib import Path
+
+ledger = Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+records = [json.loads(line) for line in ledger.read_text().splitlines() if line.strip()]
+
+# All violations
+violations = [r for r in records if not r.get("R_t+1", {}).get("passed", True)]
+
+# Filter by severity threshold
+critical = [r for r in violations if r.get("R_t+1", {}).get("overall_severity", 0) >= 0.8]
+
+# Filter by skill name
+write_violations = [r for r in violations if r.get("U_t", {}).get("skill") == "write_file"]
+
+# Export for team review or CI artifact
+with open("violations_report.json", "w") as f:
+    json.dump(violations, f, indent=2, default=str)
+
+print(f"{len(violations)} violations total, {len(critical)} critical")
+```
+
+On Windows the path is `C:\Users\<username>\.k9log\logs\k9log.cieu.jsonl`.
 
 ---
 
@@ -310,12 +385,50 @@ k9log causal --step 7          # causal chain analysis for a specific step
 k9log verify-log               # verify full SHA256 hash chain integrity
 k9log verify-ystar             # verify intent contract coverage across all skills
 k9log report --output out.html # generate an interactive causal graph report
-k9log health                   # system health check
+k9log health                   # system health check: ledger + integrity + coverage
+k9log alerts status            # show alerting channel status
 ```
+
+**`k9log health`** shows a skill coverage table. Skills marked `UNCOVERED` are being recorded but have no constraints — violations in those skills will be logged but not flagged. To fix, add a `@k9(...)` decorator to the function, or create `~/.k9log/config/<skill_name>.json` with your constraints. Skills marked `PARTIAL` have constraints on some calls but not all — check for code paths that bypass the decorator.
 
 **`k9log verify-log`** outputs a `Chain integrity: OK` confirmation plus the total record count and the final hash. A clean result means no record has been silently modified since it was written. Run it before sending a report to a client, auditor, or compliance reviewer — it is cryptographic proof the evidence has not been tampered with.
 
 **`k9log report --output out.html`** generates a self-contained HTML file with an interactive causal graph, full CIEU record table, and violation summary. Share it with a team lead for post-incident review, attach it to a compliance audit, or send it to a client as evidence that agent actions were monitored and recorded.
+
+**CI/CD gate: failing a pipeline on violations**
+
+`k9log` commands currently always return exit code 0. To fail a CI pipeline when critical violations exist, use the Python query pattern:
+
+```python
+# ci_check.py — run after your agent job
+import json, sys
+from pathlib import Path
+
+ledger = Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+if not ledger.exists():
+    print("No ledger found — was K9 running?")
+    sys.exit(1)
+
+records = [json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]
+critical = [
+    r for r in records
+    if not r.get("R_t+1", {}).get("passed", True)
+    and r.get("R_t+1", {}).get("overall_severity", 0) >= 0.8
+]
+
+if critical:
+    print(f"K9 AUDIT FAILED: {len(critical)} critical violation(s)")
+    for r in critical:
+        print(f"  seq={r.get('_integrity',{}).get('seq','?')} "
+              f"skill={r.get('U_t',{}).get('skill','?')} "
+              f"severity={r.get('R_t+1',{}).get('overall_severity','?')}")
+    sys.exit(1)
+
+print(f"K9 AUDIT PASSED: {len(records)} records, no critical violations")
+sys.exit(0)
+```
+
+Call `python ci_check.py` as the last step in your pipeline. Exit code 1 = violations found, 0 = clean.
 
 ---
 
@@ -378,6 +491,26 @@ k9log/
 ├── agents_md_parser.py  ← AGENTS.md / CLAUDE.md rule parser
 └── governance/          ← action class registry (READ/WRITE/DELETE/EXECUTE/…)
 ```
+
+**Sensitive data masking (`redact.py`)**
+
+By default, K9 Audit runs in `standard` redaction mode. Parameter names matching common sensitive patterns (`password`, `token`, `api_key`, `secret`, `credit_card`, `ssn`, and others) are automatically masked before being written to the Ledger — the value is replaced with `[REDACTED]`.
+
+Control the redaction level via environment variable:
+
+```bash
+K9LOG_REDACT_LEVEL=off      # no masking — full params stored
+K9LOG_REDACT_LEVEL=standard # default — mask known sensitive param names
+K9LOG_REDACT_LEVEL=strict   # mask all string values longer than 50 chars
+```
+
+Or set it permanently in `~/.k9log/redact.json`:
+
+```json
+{ "level": "standard" }
+```
+
+`strict` mode is recommended for agents handling PII, medical records, or financial data.
 
 ---
 

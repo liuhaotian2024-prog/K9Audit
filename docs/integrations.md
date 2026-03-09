@@ -279,3 +279,68 @@ k9log verify-log               # cryptographic proof nothing was tampered
 k9log report --output out.html # shareable HTML evidence report
 ```
 
+---
+
+## CI/CD
+
+K9 Audit can run inside any CI/CD pipeline (GitHub Actions, GitLab CI, Jenkins, etc.) to generate a tamper-proof audit trail for every automated agent run.
+
+### GitHub Actions example
+
+```yaml
+name: Agent Audit
+
+on: [push, pull_request]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install k9audit-hook
+
+      - name: Run agent
+        run: python your_agent.py  # @k9 decorators record to ~/.k9log/
+
+      - name: K9 audit gate
+        run: python ci_check.py    # exits 1 if critical violations found
+
+      - name: Upload audit report
+        if: always()               # upload even if gate failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: k9-audit-report
+          path: |
+            ~/.k9log/logs/k9log.cieu.jsonl
+            violations_report.json
+```
+
+Place `ci_check.py` in your repo root (see the CI/CD gate script in the README CLI reference section).
+
+### Key considerations
+
+**Ledger persistence:** The Ledger lives in `~/.k9log/` on the runner. Each CI job starts with an empty Ledger — this is intentional. Upload `k9log.cieu.jsonl` as an artifact to keep a permanent record per run.
+
+**Severity threshold:** The `ci_check.py` script defaults to failing on `severity >= 0.8` (CRITICAL). Adjust this to your team's tolerance — `0.5` catches HIGH violations too.
+
+**Generating a readable report:**
+
+```yaml
+      - name: Generate HTML report
+        if: always()
+        run: k9log report --output k9_report.html
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k9-html-report
+          path: k9_report.html
+```
+
