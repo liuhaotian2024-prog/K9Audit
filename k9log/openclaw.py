@@ -77,6 +77,7 @@ def k9_wrap_module(
             continue
 
         wrapped_fn = k9(**shared_constraints)(obj) if shared_constraints else k9(obj)
+        wrapped_fn = _add_outcome_tracking(wrapped_fn, name)
         setattr(module, name, wrapped_fn)
         wrapped.append(name)
 
@@ -112,6 +113,7 @@ def k9_wrap_class(
         if name in exclude_set:
             continue
         wrapped_fn = k9(**shared_constraints)(obj) if shared_constraints else k9(obj)
+        wrapped_fn = _add_outcome_tracking(wrapped_fn, name)
         setattr(cls, name, wrapped_fn)
         wrapped.append(name)
 
@@ -120,3 +122,37 @@ def k9_wrap_class(
         cls.__name__, wrapped
     )
     return cls
+
+
+def _add_outcome_tracking(func, func_name):
+    """Add update_outcome() call after @k9 wrapper for causal chain support."""
+    import functools, time, uuid as _uuid
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        tool_use_id = str(_uuid.uuid4())
+        t0 = time.time()
+        error = None
+        result = None
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            error = e
+        finally:
+            try:
+                from k9log.logger import get_logger
+                outcome = {
+                    "exit_code":    1 if error else 0,
+                    "stdout":       str(result)[:500] if result is not None else "",
+                    "stderr":       str(error) if error else "",
+                    "error":        str(error) if error else "",
+                    "duration_sec": time.time() - t0,
+                }
+                get_logger().update_outcome(tool_use_id, outcome)
+            except Exception:
+                pass
+        if error:
+            raise error
+        return result
+
+    return wrapper
