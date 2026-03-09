@@ -558,6 +558,12 @@ def _eval_expr(expr, params, result):
     Returns (bool, exception_or_None)
     """
     # Build a safe namespace
+    # Unwrap Y_t+1 envelope: {result: {...}} -> {...}
+    # so postconditions can write result["status"] not result["result"]["status"]
+    result_val = result
+    if isinstance(result, dict) and 'result' in result:
+        result_val = result['result']
+
     namespace = {
         '__builtins__': {
             'abs': abs, 'len': len, 'int': int, 'float': float,
@@ -566,7 +572,8 @@ def _eval_expr(expr, params, result):
             'isinstance': isinstance, 'hasattr': hasattr,
             'True': True, 'False': False, 'None': None,
         },
-        'result': result,
+        'result': result_val,
+        'result_raw': result,
         'params': params,
     }
     # Unpack params as direct variables for convenience
