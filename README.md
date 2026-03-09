@@ -18,8 +18,6 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 
 *Statistical AI moves fast. Causal AI makes sure it doesn't go off the rails — and when it does, the evidence is ironclad.*
 
-*AI coding agent 写坏了代码？K9 在落盘瞬间告警，100ms 内发送根因，错过告警也可一键溯源。从分钟级排查到秒级定位。*
-
 ---
 
 ## Contents
@@ -99,25 +97,6 @@ seq=451  2026-03-04 16:59:22 UTC
 
 ---
 
-## K9 Audit 首次让生成式 AI 代理的内部连续行为从黑箱猜测转向瞬间可现的铁证链条
-
-当 AI coding agent 帮你写代码出了问题，K9 做三件其他工具都做不到的事：
-
-**1. 写完就检查，出错立即告警**
-AI 每次写文件，K9 在写入瞬间检查约束。违规立即发告警——不是等测试失败，而是代码刚落盘就知道有问题。
-
-**2. 告警同时附上根因**
-告警第一条：违规详情。告警第二条（100ms 后自动）：因果链追溯，直接告诉你是哪一步、哪个文件、缺了什么。
-
-**3. 错过告警？一键溯源**
-去睡觉了，或者错过了告警——所有操作都已记录在 CIEU 因果链里。回来一条命令秒级定位根因：
-```
-k9log causal --last
-```
-
-→ [完整案例：missing import logging，从分钟级到秒级](./docs/causal_tracing.md)
-
----
 ## What K9 Audit is
 
 Every action monitored by K9 Audit produces a **CIEU record** — a rigorously structured five-tuple written into the causal evidence ledger:
@@ -133,6 +112,7 @@ Every action monitored by K9 Audit produces a **CIEU record** — a rigorously s
 This is a fundamentally different category of infrastructure: **tamper-evident causal evidence**.
 
 ---
+
 ## What K9 Audit is not
 
 - Not an interception or firewall system *(Phase 1: zero-disruption observability only)*
@@ -202,33 +182,14 @@ File: `~/.k9log/intents/write_config.json`
 }
 ```
 
+### Option 3: CLI ingestion
 
-### Option 3: LangChain callback handler
-
-For agents built with LangChain — zero changes to your chain or agent logic:
-```python
-from k9log.langchain_adapter import K9CallbackHandler
-
-handler = K9CallbackHandler()
-
-# Works with agents, chains, or individual tools
-agent = initialize_agent(tools, llm, callbacks=[handler])
-chain = LLMChain(llm=llm, prompt=prompt, callbacks=[handler])
+```bash
+k9log ingest --input events.jsonl
 ```
 
-Every tool call automatically writes a CIEU record. Constraint violations are
-detected at `on_tool_start` (pre-execution) and the outcome is recorded at
-`on_tool_end` / `on_tool_error`. No decorator or hook configuration needed.
-
 ---
 
-## AI coding agent bug tracing
-
-20 minutes of log archaeology → 10 seconds with `k9log causal --last`.
-
-→ [Real case: how K9 traced a missing import through 3 steps](./docs/causal_tracing.md)
-
----
 ## CLI reference
 
 ```bash
@@ -318,15 +279,6 @@ Records are written to `~/.k9log/logs/k9log.cieu.jsonl` — one JSON object per 
 Full cryptographic and DAG structure specification: [docs/CIEU_spec.md](./docs/CIEU_spec.md)
 
 ---
-
-
-## Patent Notice
-
-The CIEU architecture is covered by U.S. Provisional Patent Application No. 63/981,777:
-*"Causal Intervention-Effect Unit (CIEU): A Universal Causal Record Architecture for Audit and Governance of Arbitrary Processes"*
-
-Users of K9log under AGPL-3.0 receive patent rights per AGPL-3.0 Section 11.
-For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md](PATENTS.md).
 
 ## License
 
