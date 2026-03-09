@@ -23,6 +23,10 @@ import re
 from pathlib import Path
 from datetime import datetime, timezone
 
+# Track which skills have already emitted the UNCONSTRAINED warning this process,
+# so users aren't flooded with identical messages on repeated calls.
+_unconstrained_warned: set = set()
+
 def load_constraints(skill_name, inline_constraints=None):
     """
     Load Y*_t with versioning metadata
@@ -62,7 +66,9 @@ def load_constraints(skill_name, inline_constraints=None):
 
     # Warn if no constraints found -- unconstrained calls are recorded
     # but violations cannot be detected, which is a security gap.
-    if not constraints:
+    # Warning fires once per skill per process to avoid log spam.
+    if not constraints and skill_name not in _unconstrained_warned:
+        _unconstrained_warned.add(skill_name)
         logging.getLogger('k9log').warning(
             'k9log: skill "%s" has no constraints (no inline rules, no config file) '
             '-- call will be recorded as UNCONSTRAINED', skill_name

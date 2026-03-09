@@ -211,10 +211,12 @@ def k9(func=None, **inline_constraints):
                         _k9_log.debug('[k9]   violation: %s on field=%s',
                                       v.get('type'), v.get('field'))
                 elif not _SILENT and not r_t_plus_1.get('passed', True):
-                    _k9_log.info('[k9] violation in %s: %s',
-                                 f.__name__,
-                                 ', '.join(v.get('type', '?')
-                                           for v in r_t_plus_1.get('violations', [])))
+                    violations = r_t_plus_1.get('violations', [])
+                    details = '; '.join(
+                        v.get('message') or f"{v.get('field')}={v.get('actual')} violates {v.get('type')}"
+                        for v in violations
+                    )
+                    _k9_log.warning('[k9] VIOLATION in %s: %s', f.__name__, details)
 
                 if not _SILENT:
                     logger.write_cieu(cieu_record)
