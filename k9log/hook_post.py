@@ -20,24 +20,33 @@ from pathlib import Path
 
 def _extract_contracts_from_file(file_path):
     """
-    Parse a Python file and extract K9Contract blocks from all functions.
+    Parse a Python file, extract K9Contract blocks from all functions,
+    then apply K9 Law inference to fill gaps the agent left empty.
     Returns dict: {function_name: {postcondition: [...], invariant: [...]}}
     """
     try:
         import ast
-        from k9log.constraints import parse_k9contract
+        from k9log.constraints import parse_k9contract, _infer_contracts_from_ast, _merge_contracts
         source = Path(file_path).read_text(encoding='utf-8')
         tree = ast.parse(source)
         contracts = {}
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
+            # Step 1: parse agent-written K9Contract
             docstring = ast.get_docstring(node)
-            if not docstring:
-                continue
-            contract = parse_k9contract(docstring)
-            if contract:
-                contracts[node.name] = contract
+            parsed = parse_k9contract(docstring) if docstring else {}
+            # Step 2: infer missing contracts from AST (K9 Law)
+            inferred = _infer_contracts_from_ast(source, node)
+            # Step 3: merge — agent contract takes priority, K9 Law fills gaps
+            merged = _merge_contracts(parsed, inferred)
+            if merged:
+                # Log what was inferred vs written
+                if merged.get('_inferred'):
+                    sys.stderr.write(
+                        f'[k9log] K9Law inferred for {node.name}: {merged["_inferred"]}\n'
+                    )
+                contracts[node.name] = merged
         return contracts
     except Exception:
         return {}

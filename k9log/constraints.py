@@ -673,3 +673,128 @@ def parse_k9contract(docstring):
                     contract['invariant'].append(expr)
     # Remove empty keys
     return {k: v for k, v in contract.items() if v}
+
+
+def _infer_contracts_from_ast(source, func_node):
+    """
+    Apply K9 Law to infer missing contracts from AST.
+    Rules:
+      INV-NUM:     numeric param used in comparison → invariant: param > 0 (or >= 0)
+      INV-STR:     string param used → invariant: len(param) > 0
+      POST-RETURN: function returns dict with known keys → postcondition per key
+      POST-NOTNONE: function has return statement → postcondition: result is not None
+      INV-RAISE:   if param < 0: raise → invariant: param >= 0
+    Returns {postcondition: [...], invariant: [...]}
+    """
+    inferred = {'postcondition': [], 'invariant': []}
+
+    try:
+        import ast as _ast_mod
+        args = [a.arg for a in func_node.args.args if a.arg != 'self']
+
+        # Collect all comparisons in function body
+        for node in _ast_mod.walk(func_node):
+
+            # INV-RAISE: detect `if param < 0: raise ...`
+            if isinstance(node, _ast_mod.If):
+                test = node.test
+                # Check if body contains a Raise
+                has_raise = any(isinstance(n, _ast_mod.Raise)
+                                for n in _ast_mod.walk(node))
+                if has_raise and isinstance(test, _ast_mod.Compare):
+                    if isinstance(test.left, _ast_mod.Name):
+                        param = test.left.id
+                        if param in args and len(test.ops) == 1:
+                            op = test.ops[0]
+                            comp = test.comparators[0]
+                            comp_val = None
+                            if isinstance(comp, _ast_mod.Constant):
+                                comp_val = comp.value
+                            # if param < 0 raise → invariant: param >= 0
+                            if isinstance(op, _ast_mod.Lt) and comp_val == 0:
+                                inv = f'{param} >= 0'
+                                if inv not in inferred['invariant']:
+                                    inferred['invariant'].append(inv)
+                            # if param <= 0 raise → invariant: param > 0
+                            elif isinstance(op, _ast_mod.LtE) and comp_val == 0:
+                                inv = f'{param} > 0'
+                                if inv not in inferred['invariant']:
+                                    inferred['invariant'].append(inv)
+
+            # INV-NUM: param used in numeric comparison (not raise-guarded)
+            if isinstance(node, _ast_mod.Compare):
+                if isinstance(node.left, _ast_mod.Name):
+                    param = node.left.id
+                    if param in args:
+                        for op, comp in zip(node.ops, node.comparators):
+                            if isinstance(comp, _ast_mod.Constant):
+                                if isinstance(comp.value, (int, float)):
+                                    if comp.value == 0:
+                                        inv = f'{param} >= 0'
+                                        if inv not in inferred['invariant']:
+                                            inferred['invariant'].append(inv)
+
+            # POST-RETURN: detect return {"key": ...} patterns
+            if isinstance(node, _ast_mod.Return) and node.value:
+                if isinstance(node.value, _ast_mod.Dict):
+                    for key in node.value.keys:
+                        if isinstance(key, _ast_mod.Constant) and isinstance(key.value, str):
+                            post = f'result is not None'
+                            if post not in inferred['postcondition']:
+                                inferred['postcondition'].append(post)
+                            key_post = f'"{key.value}" in result'
+                            if key_post not in inferred['postcondition']:
+                                inferred['postcondition'].append(key_post)
+
+        # POST-NOTNONE: any function with a return value
+        has_return_value = any(
+            isinstance(n, _ast_mod.Return) and n.value is not None
+            for n in _ast_mod.walk(func_node)
+        )
+        if has_return_value:
+            post = 'result is not None'
+            if post not in inferred['postcondition']:
+                inferred['postcondition'].append(post)
+
+        # INV-STR: string params (annotated as str or named with str hints)
+        for arg in func_node.args.args:
+            if arg.arg == 'self':
+                continue
+            ann = arg.annotation
+            if ann and isinstance(ann, _ast_mod.Name) and ann.id == 'str':
+                inv = f'len({arg.arg}) > 0'
+                if inv not in inferred['invariant']:
+                    inferred['invariant'].append(inv)
+
+    except Exception:
+        pass
+
+    return {k: v for k, v in inferred.items() if v}
+
+
+def _merge_contracts(parsed, inferred):
+    """
+    Merge agent-written contract with K9-inferred contract.
+    Agent-written takes priority; inferred fills gaps.
+    Records which rules were inferred (for transparency).
+    """
+    merged = {
+        'postcondition': list(parsed.get('postcondition', [])),
+        'invariant': list(parsed.get('invariant', [])),
+        '_inferred': [],
+    }
+
+    for expr in inferred.get('postcondition', []):
+        if expr not in merged['postcondition']:
+            merged['postcondition'].append(expr)
+            merged['_inferred'].append(f'POST:{expr}')
+
+    for expr in inferred.get('invariant', []):
+        if expr not in merged['invariant']:
+            merged['invariant'].append(expr)
+            merged['_inferred'].append(f'INV:{expr}')
+
+    if not merged['_inferred']:
+        del merged['_inferred']
+
+    return {k: v for k, v in merged.items() if v}
