@@ -30,6 +30,7 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 - [What K9 Audit is not](#what-k9-audit-is-not)
 - [How K9 Audit differs](#how-k9-audit-differs)
 - [Installation](#installation)
+- [Works with](#works-with)
 - [Quick start](#quick-start)
 - [AI coding agent bug tracing](#ai-coding-agent-bug-tracing)
 - [CLI reference](#cli-reference)
@@ -59,7 +60,6 @@ Your agents work for you. K9 Audit makes sure that's actually true.
 ## A real incident
 
 On March 4, 2026, during a routine quant backtesting session, Claude Code attempted three times to write a staging environment URL into a production config file:
-
 ```json
 {"endpoint": "https://api.market-data.staging.internal/v2/ohlcv"}
 ```
@@ -67,7 +67,6 @@ On March 4, 2026, during a routine quant backtesting session, Claude Code attemp
 Because the syntax was valid, no error was thrown. A conventional logger would have buried this silently in a text file — quietly corrupting every subsequent backtest result.
 
 Here is how K9 Audit traced the root cause using the Ledger immediately:
-
 ```
 k9log trace --last
 
@@ -144,16 +143,28 @@ Other observability tools work like expensive cameras. K9 Audit works like an au
 ---
 
 ## Installation
-
 ```bash
 pip install k9audit-hook
 ```
 
 **Windows (one-step setup including Claude Code hook registration):**
-
 ```powershell
 .\Install-K9Solo.ps1
 ```
+
+---
+
+## Works with
+
+| Tool | Type | Setup |
+|---|---|---|
+| **Claude Code** | AI coding agent | [Zero-config hook →](./docs/integrations.md#claude-code) |
+| **Cursor** | AI coding editor | [Decorator setup →](./docs/integrations.md#cursor) |
+| **LangChain** | Agent framework | [Callback handler →](./docs/integrations.md#langchain) |
+| **AutoGen** | Multi-agent framework | [Function wrapper →](./docs/integrations.md#autogen) |
+| **CrewAI** | Agent framework | [Tool wrapper →](./docs/integrations.md#crewai) |
+| **OpenClaw** | Skill framework | [Module-level wrap →](./docs/integrations.md#openclaw) |
+| **Any Python agent** | — | [One decorator →](./docs/integrations.md#any-python-agent) |
 
 ---
 
@@ -162,7 +173,6 @@ pip install k9audit-hook
 ### Option 1: Claude Code — zero-config hook (recommended)
 
 Drop a `.claude/settings.json` at your project root. Every Claude Code tool call is automatically recorded — no changes to your code or prompts.
-
 ```json
 {
   "hooks": {
@@ -177,7 +187,6 @@ The `PostToolUse` hook also parses **K9Contract** blocks from any `.py` file Cla
 → [K9Contract format and rules](./AGENTS.md)
 
 ### Option 2: Python decorator (non-invasive tracing)
-
 ```python
 from k9log.core import k9
 import json
@@ -198,7 +207,6 @@ Every call now automatically writes a CIEU record to the Ledger. If the agent vi
 ### Option 3: Intent contract file (decoupled rules)
 
 File: `~/.k9log/intents/write_config.json`
-
 ```json
 {
   "skill": "write_config",
@@ -213,7 +221,6 @@ File: `~/.k9log/intents/write_config.json`
 ### Option 4: LangChain callback handler
 
 For agents built with LangChain — zero changes to your chain or agent logic:
-
 ```python
 from k9log.langchain_adapter import K9CallbackHandler
 
@@ -239,7 +246,6 @@ Every tool call automatically writes a CIEU record. Constraint violations are de
 ---
 
 ## CLI reference
-
 ```bash
 k9log stats                    # display Ledger summary
 k9log trace --step 451         # instantly trace the root cause of a specific event
@@ -261,7 +267,6 @@ K9 Audit can push a structured CIEU alert the moment a deviation is written to t
 Every alert is a CIEU five-tuple, not a raw event ping. The goal is not just to tell you something happened. It is to make you fluent in reading causal evidence. A second message follows automatically 100ms later with the causal chain trace and root cause.
 
 Configure in `~/.k9log/alerting.json`:
-
 ```json
 {
   "enabled": true,
@@ -280,7 +285,6 @@ Supports Telegram, Slack, Discord, and custom webhooks. Includes deduplication, 
 ---
 
 ## Architecture
-
 ```
 k9log/
 ├── core.py              ← @k9 decorator, non-invasive Ledger writer
