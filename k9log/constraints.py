@@ -311,6 +311,24 @@ def check_compliance(params, result, y_star_t):
                     rule_key, param_name, e
                 )
     
+    # ── postcondition: expression evaluated against result + params ──────────
+    postconditions = constraints.get('postcondition', [])
+    if isinstance(postconditions, str):
+        postconditions = [postconditions]
+    for expr in postconditions:
+        violation = _check_postcondition(expr, params, result)
+        if violation:
+            violations.append(violation)
+
+    # ── invariant: always-true expression ─────────────────────────────────
+    invariants = constraints.get('invariant', [])
+    if isinstance(invariants, str):
+        invariants = [invariants]
+    for expr in invariants:
+        violation = _check_invariant(expr, params, result)
+        if violation:
+            violations.append(violation)
+
     # Calculate overall assessment
     passed = len(violations) == 0
     overall_severity = max([v['severity'] for v in violations]) if violations else 0.0
@@ -528,3 +546,123 @@ def _check_enum(param_name, value, enum_values):
         }
     return None
 
+
+
+def _eval_expr(expr, params, result):
+    """
+    Safely evaluate a postcondition/invariant expression.
+    Available variables:
+      - result: the function return value (Y_t+1.result)
+      - params: dict of input parameters
+      - each param name unpacked as a direct variable
+    Returns (bool, exception_or_None)
+    """
+    # Build a safe namespace
+    namespace = {
+        '__builtins__': {
+            'abs': abs, 'len': len, 'int': int, 'float': float,
+            'str': str, 'bool': bool, 'list': list, 'dict': dict,
+            'min': min, 'max': max, 'sum': sum, 'round': round,
+            'isinstance': isinstance, 'hasattr': hasattr,
+            'True': True, 'False': False, 'None': None,
+        },
+        'result': result,
+        'params': params,
+    }
+    # Unpack params as direct variables for convenience
+    # e.g. postcondition: "amount > 0" instead of "params['amount'] > 0"
+    for k, v in (params or {}).items():
+        if k.isidentifier():
+            namespace[k] = v
+    try:
+        value = eval(compile(expr, '<postcondition>', 'eval'), namespace)
+        return bool(value), None
+    except Exception as e:
+        return False, e
+
+
+def _check_postcondition(expr, params, result):
+    """Check a postcondition expression against execution result."""
+    passed, err = _eval_expr(expr, params, result)
+    if err is not None:
+        return {
+            'type': 'CODE_INVARIANT',
+            'rule_id': 'POST-EVAL',
+            'field': 'postcondition',
+            'matched': expr,
+            'severity': 0.7,
+            'message': f'Postcondition eval error: {expr!r} — {err}',
+        }
+    if not passed:
+        return {
+            'type': 'CODE_INVARIANT',
+            'rule_id': 'POST-001',
+            'field': 'postcondition',
+            'matched': expr,
+            'severity': 0.85,
+            'message': f'Postcondition violated: {expr!r}',
+        }
+    return None
+
+
+def _check_invariant(expr, params, result):
+    """Check an invariant expression — must always be true."""
+    passed, err = _eval_expr(expr, params, result)
+    if err is not None:
+        return {
+            'type': 'CODE_INVARIANT',
+            'rule_id': 'INV-EVAL',
+            'field': 'invariant',
+            'matched': expr,
+            'severity': 0.7,
+            'message': f'Invariant eval error: {expr!r} — {err}',
+        }
+    if not passed:
+        return {
+            'type': 'CODE_INVARIANT',
+            'rule_id': 'INV-001',
+            'field': 'invariant',
+            'matched': expr,
+            'severity': 0.9,
+            'message': f'Invariant violated: {expr!r}',
+        }
+    return None
+
+
+def parse_k9contract(docstring):
+    """
+    Parse K9Contract block from a Python function docstring.
+
+    Format:
+        K9Contract:
+          postcondition: result > 0
+          postcondition: result is not None
+          invariant: amount > 0
+
+    Returns dict with keys: postcondition (list), invariant (list)
+    """
+    if not docstring:
+        return {}
+    contract = {'postcondition': [], 'invariant': []}
+    in_contract = False
+    for line in docstring.splitlines():
+        stripped = line.strip()
+        if stripped == 'K9Contract:':
+            in_contract = True
+            continue
+        if in_contract:
+            if not stripped:
+                continue
+            # Stop if we hit another section (unindented text)
+            if not line.startswith(' ') and not line.startswith('	'):
+                break
+            if stripped.startswith('postcondition:'):
+                expr = stripped[len('postcondition:'):].strip()
+                if expr:
+                    contract['postcondition'].append(expr)
+            elif stripped.startswith('invariant:'):
+                expr = stripped[len('invariant:'):].strip()
+                if expr:
+                    contract['invariant'].append(expr)
+    # Remove empty keys
+    return {k: v for k, v in contract.items() if v}
