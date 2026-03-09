@@ -18,6 +18,8 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 
 *Statistical AI moves fast. Causal AI makes sure it doesn't go off the rails — and when it does, the evidence is ironclad.*
 
+*AI coding agent wrote broken code? K9 alerts at the moment of write, delivers root cause within 100ms, and supports one-command tracing even if you missed the alert. From minutes of investigation to seconds of pinpointing.*
+
 ---
 
 ## Contents
@@ -29,6 +31,7 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 - [How K9 Audit differs](#how-k9-audit-differs)
 - [Installation](#installation)
 - [Quick start](#quick-start)
+- [AI coding agent bug tracing](#ai-coding-agent-bug-tracing)
 - [CLI reference](#cli-reference)
 - [Real-time audit alerts](#real-time-audit-alerts)
 - [Architecture](#architecture)
@@ -102,7 +105,7 @@ seq=451  2026-03-04 16:59:22 UTC
 Every action monitored by K9 Audit produces a **CIEU record** — a rigorously structured five-tuple written into the causal evidence ledger:
 
 | Field | Symbol | Meaning |
-|-------|--------|---------|
+|---|---|---|
 | Context | `X_t` | Who acted, when, and under what conditions |
 | Action | `U_t` | What the agent actually executed |
 | Intent Contract | `Y*_t` | What the system expected the agent to do |
@@ -110,6 +113,8 @@ Every action monitored by K9 Audit produces a **CIEU record** — a rigorously s
 | Assessment | `R_t+1` | How far the outcome diverged from intent, and why |
 
 This is a fundamentally different category of infrastructure: **tamper-evident causal evidence**.
+
+→ [Full CIEU record specification](./docs/CIEU_spec.md)
 
 ---
 
@@ -144,11 +149,34 @@ Other observability tools work like expensive cameras. K9 Audit works like an au
 pip install k9audit-hook
 ```
 
+**Windows (one-step setup including Claude Code hook registration):**
+
+```powershell
+.\Install-K9Solo.ps1
+```
+
 ---
 
 ## Quick start
 
-### Option 1: Python decorator (non-invasive tracing)
+### Option 1: Claude Code — zero-config hook (recommended)
+
+Drop a `.claude/settings.json` at your project root. Every Claude Code tool call is automatically recorded — no changes to your code or prompts.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python -m k9log.hook"}]}],
+    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python -m k9log.hook_post"}]}]
+  }
+}
+```
+
+The `PostToolUse` hook also parses **K9Contract** blocks from any `.py` file Claude Code writes, and saves them automatically — so the next time that function is called, constraints are enforced with no decorator needed.
+
+→ [K9Contract format and rules](./AGENTS.md)
+
+### Option 2: Python decorator (non-invasive tracing)
 
 ```python
 from k9log.core import k9
@@ -167,7 +195,7 @@ def write_config(path: str, content: dict) -> bool:
 
 Every call now automatically writes a CIEU record to the Ledger. If the agent violates a constraint, execution continues — but a high-severity deviation is permanently flagged in the chain.
 
-### Option 2: Intent contract file (decoupled rules)
+### Option 3: Intent contract file (decoupled rules)
 
 File: `~/.k9log/intents/write_config.json`
 
@@ -182,11 +210,31 @@ File: `~/.k9log/intents/write_config.json`
 }
 ```
 
-### Option 3: CLI ingestion
+### Option 4: LangChain callback handler
 
-```bash
-k9log ingest --input events.jsonl
+For agents built with LangChain — zero changes to your chain or agent logic:
+
+```python
+from k9log.langchain_adapter import K9CallbackHandler
+
+handler = K9CallbackHandler()
+
+# Works with agents, chains, or individual tools
+agent = initialize_agent(tools, llm, callbacks=[handler])
+chain = LLMChain(llm=llm, prompt=prompt, callbacks=[handler])
 ```
+
+Every tool call automatically writes a CIEU record. Constraint violations are detected at `on_tool_start` (pre-execution) and the outcome is recorded at `on_tool_end` / `on_tool_error`. No decorator or hook configuration needed.
+
+→ [Integration guides: Cursor, AutoGen, CrewAI, OpenClaw, and more](./docs/integrations.md)
+
+---
+
+## AI coding agent bug tracing
+
+20 minutes of log archaeology → 10 seconds with `k9log causal --last`.
+
+→ [Real case: how K9 traced a missing import through 3 steps](./docs/causal_tracing.md)
 
 ---
 
@@ -196,8 +244,10 @@ k9log ingest --input events.jsonl
 k9log stats                    # display Ledger summary
 k9log trace --step 451         # instantly trace the root cause of a specific event
 k9log trace --last             # analyze the most recent deviation
+k9log causal --last            # causal chain analysis: auto-detect and find root cause
+k9log causal --step 7          # causal chain analysis for a specific step
 k9log verify-log               # verify full SHA256 hash chain integrity
-                               # (will be renamed to verify-ledger in next release)
+k9log verify-ystar             # verify intent contract coverage across all skills
 k9log report --output out.html # generate an interactive causal graph report
 k9log health                   # system health check
 ```
@@ -208,9 +258,9 @@ k9log health                   # system health check
 
 K9 Audit can push a structured CIEU alert the moment a deviation is written to the Ledger — milliseconds before you would ever think to investigate manually.
 
-Every alert is a CIEU five-tuple, not a raw event ping. The goal is not just to tell you something happened. It is to make you fluent in reading causal evidence.
+Every alert is a CIEU five-tuple, not a raw event ping. The goal is not just to tell you something happened. It is to make you fluent in reading causal evidence. A second message follows automatically 100ms later with the causal chain trace and root cause.
 
-Configure in `~/.k9log/config/alerting.json`:
+Configure in `~/.k9log/alerting.json`:
 
 ```json
 {
@@ -225,7 +275,7 @@ Configure in `~/.k9log/config/alerting.json`:
 }
 ```
 
-Supports Telegram, Slack, Discord.
+Supports Telegram, Slack, Discord, and custom webhooks. Includes deduplication, batch aggregation, and a configurable Do Not Disturb window.
 
 ---
 
@@ -235,13 +285,22 @@ Supports Telegram, Slack, Discord.
 k9log/
 ├── core.py              ← @k9 decorator, non-invasive Ledger writer
 ├── logger.py            ← hash-chained Ledger persistence
-├── tracer.py            ← causal DAG traversal and root cause analyzer
+├── tracer.py            ← incident trace: full CIEU five-tuple display
+├── causal_analyzer.py   ← causal DAG traversal and root cause analysis
 ├── verifier.py          ← cryptographic chain integrity verification
-├── constraints.py       ← Y*_t intent contract loader
+├── constraints.py       ← Y*_t intent contract loader and checker
+├── redact.py            ← automatic sensitive data masking
 ├── report.py            ← HTML causal graph report generator
 ├── cli.py               ← command-line interface
 ├── alerting.py          ← real-time CIEU deviation alerts
-└── identity.py          ← agent identity and session capture
+├── identity.py          ← agent identity and session capture
+├── hook.py              ← Claude Code PreToolUse adapter
+├── hook_post.py         ← Claude Code PostToolUse + K9Contract extractor
+├── autocontract.py      ← zero-decorator contract injection via sys.meta_path
+├── langchain_adapter.py ← LangChain callback handler
+├── openclaw.py          ← module-level batch wrapping (k9_wrap_module)
+├── agents_md_parser.py  ← AGENTS.md / CLAUDE.md rule parser
+└── governance/          ← action class registry (READ/WRITE/DELETE/EXECUTE/…)
 ```
 
 ---
@@ -279,6 +338,14 @@ Records are written to `~/.k9log/logs/k9log.cieu.jsonl` — one JSON object per 
 Full cryptographic and DAG structure specification: [docs/CIEU_spec.md](./docs/CIEU_spec.md)
 
 ---
+
+## Patent Notice
+
+The CIEU architecture is covered by U.S. Provisional Patent Application No. 63/981,777:
+*"Causal Intervention-Effect Unit (CIEU): A Universal Causal Record Architecture for Audit and Governance of Arbitrary Processes"*
+
+Users of K9log under AGPL-3.0 receive patent rights per AGPL-3.0 Section 11.
+For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md](./PATENTS.md).
 
 ## License
 
