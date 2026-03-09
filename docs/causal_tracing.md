@@ -1,4 +1,4 @@
-# AI Coding Agent Bug Tracing
+﻿# AI Coding Agent Bug Tracing
 
 > "I was afraid there would be bugs everywhere. Turns out there were only 3,
 > and the causal chain found them all." — K9Audit developer, March 2026
@@ -19,6 +19,19 @@ one command traces the root cause:
 ```
 k9log causal --last
 ```
+
+## What triggers causal analysis
+
+`k9log causal --last` scans the Ledger for the most recent **execution failure** — specifically, any `Bash` or tool call that returned a non-zero exit code. It then traverses the causal DAG backwards to find the root cause.
+
+This means:
+- A test runner crash (`exit_code=1`) → **detected automatically**
+- A Python exception in a script → **detected automatically**
+- A logically wrong value written to a file (no crash, exit code 0) → **use `k9log trace --last` instead**, which shows the full CIEU record including the written content
+
+If you want to flag a logical violation without a crash, add a K9Contract postcondition to the function — K9 Audit will record the violation as a high-severity deviation even if execution succeeded.
+
+---
 
 ## Real case: missing `import logging` in report.py
 
@@ -83,3 +96,4 @@ Add to `.claude/settings.json`:
 
 That is the entire setup. Every subsequent Claude Code session is
 automatically recorded and traceable.
+

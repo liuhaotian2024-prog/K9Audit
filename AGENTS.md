@@ -1,15 +1,17 @@
-# K9 Audit — Claude Code Agent Instructions
+﻿# K9 Audit — Claude Code Agent Instructions
 
-## K9Contract 契约规范
+## K9Contract Specification
 
-每次写 Python 函数时，必须在 docstring 里声明 K9Contract。
-K9 Audit 会在运行时验证这些契约，违反立即告警并写入因果链。
+Every Python function you write must declare a K9Contract in its docstring.
+K9 Audit verifies these contracts at runtime — violations are immediately
+flagged and written into the causal chain.
 
-### 格式
+### Format
+
 ```python
 def process_payment(account_id: str, amount: float) -> dict:
     """
-    处理支付请求。
+    Process a payment request.
 
     K9Contract:
       postcondition: result["status"] in ("success", "failed")
@@ -19,35 +21,39 @@ def process_payment(account_id: str, amount: float) -> dict:
     ...
 ```
 
-### 规则
+### Rules
 
-**postcondition** — 函数执行完成后必须满足的条件
-- 可用变量：`result`（返回值）、`params`（入参dict）、所有参数名直接展开
-- 例：`postcondition: result is not None`
-- 例：`postcondition: len(result) > 0`
-- 例：`postcondition: result["status"] == "success" or result["error"] is not None`
+**postcondition** — condition that must hold after the function returns.
+Available variables: `result` (return value), `params` (dict of all arguments),
+and all argument names directly.
 
-**invariant** — 任何情况下都必须满足的条件（通常针对输入参数）
-- 例：`invariant: amount > 0`
-- 例：`invariant: len(user_id) > 0`
-- 例：`invariant: balance >= 0`
+- `postcondition: result is not None`
+- `postcondition: len(result) > 0`
+- `postcondition: result["status"] == "success" or result["error"] is not None`
 
-### 什么时候必须写契约
+**invariant** — condition that must always hold, typically on input arguments.
 
-- 任何有返回值的函数
-- 任何修改文件、数据库、外部状态的函数
-- 任何涉及金融、安全、配置的函数
+- `invariant: amount > 0`
+- `invariant: len(user_id) > 0`
+- `invariant: balance >= 0`
 
-### 什么时候可以省略
+### When a K9Contract is required
 
-- 纯工具函数（格式转换、字符串处理）
-- 无副作用的常量函数
+- Any function with a return value
+- Any function that modifies files, databases, or external state
+- Any function involving finance, security, or configuration
 
-### 示例：文件写入
+### When a K9Contract may be omitted
+
+- Pure utility functions (format conversion, string manipulation)
+- Side-effect-free constant functions
+
+### Example: file write
+
 ```python
 def write_config(path: str, content: dict) -> bool:
     """
-    写入配置文件。
+    Write configuration to file.
 
     K9Contract:
       postcondition: result == True
@@ -57,11 +63,12 @@ def write_config(path: str, content: dict) -> bool:
     ...
 ```
 
-### 示例：数据查询
+### Example: database query
+
 ```python
 def query_database(table: str, limit: int) -> list:
     """
-    查询数据库记录。
+    Query database records.
 
     K9Contract:
       postcondition: isinstance(result, list)
@@ -74,9 +81,10 @@ def query_database(table: str, limit: int) -> list:
 
 ---
 
-## 其他规范
+## General coding rules
 
-- 每个新文件顶部必须有 `import` 语句（不要依赖隐式导入）
-- 路径分隔符使用 `pathlib.Path`，不要硬编码 `/` 或 `\`
-- 不要硬编码 URL、IP、密钥——使用配置文件或环境变量
-- 异常必须处理，不要裸 `except: pass`
+- Every new file must have explicit `import` statements at the top — do not rely on implicit imports.
+- Use `pathlib.Path` for all path handling — do not hardcode `/` or `\`.
+- Never hardcode URLs, IPs, or secrets — use config files or environment variables.
+- All exceptions must be handled — no bare `except: pass`.
+

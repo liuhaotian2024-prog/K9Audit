@@ -1,4 +1,4 @@
-# K9 Audit — Integration Guide
+﻿# K9 Audit — Integration Guide
 
 K9 Audit works with any agent framework. Pick your setup below.
 
@@ -27,7 +27,9 @@ K9 Audit intercepts at this layer — no changes to your prompts or workflow.
 pip install k9audit-hook
 ```
 
-**Step 2 — Register the hook** in `.claude/settings.json` at your project root:
+> The PyPI package is `k9audit-hook`. The import name is `k9log` — this is expected.
+
+**Step 2 — Register both hooks** in `.claude/settings.json` at your project root:
 
 ```json
 {
@@ -35,17 +37,20 @@ pip install k9audit-hook
     "PreToolUse": [
       {
         "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python -m k9log.hook"
-          }
-        ]
+        "hooks": [{"type": "command", "command": "python -m k9log.hook"}]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{"type": "command", "command": "python -m k9log.hook_post"}]
       }
     ]
   }
 }
 ```
+
+Both hooks are required. `PreToolUse` records intent before each tool call. `PostToolUse` records the outcome and extracts K9Contract blocks from any Python files Claude Code writes — enabling automatic constraint enforcement with no decorators needed.
 
 **Step 3 — Verify:**
 
@@ -53,6 +58,18 @@ pip install k9audit-hook
 k9log health
 k9log stats
 ```
+
+Expected output after a few Claude Code tool calls:
+
+```
+K9 Audit — Ledger Stats
+  Total records : 12
+  Sessions      : 1
+  Violations    : 0
+  Last record   : 2026-03-09 21:14:03 UTC
+```
+
+If `Total records` is above zero, K9 Audit is recording correctly. You're done.
 
 From this point, every Claude Code tool call is recorded in the CIEU Ledger.
 Violations are flagged automatically and alerts fire in real time.
@@ -261,3 +278,4 @@ k9log trace --step 451         # root cause of a specific event
 k9log verify-log               # cryptographic proof nothing was tampered
 k9log report --output out.html # shareable HTML evidence report
 ```
+

@@ -1,4 +1,4 @@
-# 🐕‍🦺 K9 Audit
+﻿# 🐕‍🦺 K9 Audit
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
@@ -60,6 +60,7 @@ Your agents work for you. K9 Audit makes sure that's actually true.
 ## A real incident
 
 On March 4, 2026, during a routine quant backtesting session, Claude Code attempted three times to write a staging environment URL into a production config file:
+
 ```json
 {"endpoint": "https://api.market-data.staging.internal/v2/ohlcv"}
 ```
@@ -67,6 +68,7 @@ On March 4, 2026, during a routine quant backtesting session, Claude Code attemp
 Because the syntax was valid, no error was thrown. A conventional logger would have buried this silently in a text file — quietly corrupting every subsequent backtest result.
 
 Here is how K9 Audit traced the root cause using the Ledger immediately:
+
 ```
 k9log trace --last
 
@@ -143,11 +145,19 @@ Other observability tools work like expensive cameras. K9 Audit works like an au
 ---
 
 ## Installation
+
 ```bash
 pip install k9audit-hook
 ```
 
+The PyPI package is `k9audit-hook`. Once installed, the import name is `k9log`:
+
+```python
+from k9log import k9, set_agent_identity  # correct
+```
+
 **Windows (one-step setup including Claude Code hook registration):**
+
 ```powershell
 .\Install-K9Solo.ps1
 ```
@@ -173,6 +183,7 @@ pip install k9audit-hook
 ### Option 1: Claude Code — zero-config hook (recommended)
 
 Drop a `.claude/settings.json` at your project root. Every Claude Code tool call is automatically recorded — no changes to your code or prompts.
+
 ```json
 {
   "hooks": {
@@ -187,6 +198,7 @@ The `PostToolUse` hook also parses **K9Contract** blocks from any `.py` file Cla
 → [K9Contract format and rules](./AGENTS.md)
 
 ### Option 2: Python decorator (non-invasive tracing)
+
 ```python
 from k9log.core import k9
 import json
@@ -207,6 +219,7 @@ Every call now automatically writes a CIEU record to the Ledger. If the agent vi
 ### Option 3: Intent contract file (decoupled rules)
 
 File: `~/.k9log/intents/write_config.json`
+
 ```json
 {
   "skill": "write_config",
@@ -221,6 +234,7 @@ File: `~/.k9log/intents/write_config.json`
 ### Option 4: LangChain callback handler
 
 For agents built with LangChain — zero changes to your chain or agent logic:
+
 ```python
 from k9log.langchain_adapter import K9CallbackHandler
 
@@ -246,6 +260,7 @@ Every tool call automatically writes a CIEU record. Constraint violations are de
 ---
 
 ## CLI reference
+
 ```bash
 k9log stats                    # display Ledger summary
 k9log trace --step 451         # instantly trace the root cause of a specific event
@@ -266,25 +281,55 @@ K9 Audit can push a structured CIEU alert the moment a deviation is written to t
 
 Every alert is a CIEU five-tuple, not a raw event ping. The goal is not just to tell you something happened. It is to make you fluent in reading causal evidence. A second message follows automatically 100ms later with the causal chain trace and root cause.
 
-Configure in `~/.k9log/alerting.json`:
+**Initialize the config file:**
+
+```bash
+k9log alerting init
+```
+
+This creates `~/.k9log/alerting.json` with all channels pre-filled as templates. Edit the ones you want to enable.
+
+Full schema — `~/.k9log/alerting.json`:
+
 ```json
 {
   "enabled": true,
+  "min_severity": 0.5,
   "channels": {
     "telegram": {
-      "enabled": true,
-      "bot_token": "...",
-      "chat_id": "..."
+      "enabled": false,
+      "bot_token": "YOUR_BOT_TOKEN",
+      "chat_id": "YOUR_CHAT_ID"
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "https://hooks.slack.com/services/..."
+    },
+    "discord": {
+      "enabled": false,
+      "webhook_url": "https://discord.com/api/webhooks/..."
+    },
+    "webhook": {
+      "enabled": false,
+      "url": "https://your-endpoint.example.com/k9alert",
+      "headers": {"Authorization": "Bearer YOUR_TOKEN"}
     }
+  },
+  "dedup_window_seconds": 60,
+  "dnd": {
+    "enabled": false,
+    "start": "23:00",
+    "end": "08:00"
   }
 }
 ```
 
-Supports Telegram, Slack, Discord, and custom webhooks. Includes deduplication, batch aggregation, and a configurable Do Not Disturb window.
+Set `"enabled": true` on any channel you want active. `min_severity` controls the threshold (0.0–1.0) — only deviations above this score trigger an alert.
 
 ---
 
 ## Architecture
+
 ```
 k9log/
 ├── core.py              ← @k9 decorator, non-invasive Ledger writer
@@ -356,3 +401,4 @@ For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md]
 AGPL-3.0. See [LICENSE](./LICENSE).
 
 Copyright (C) 2026 Haotian Liu
+
