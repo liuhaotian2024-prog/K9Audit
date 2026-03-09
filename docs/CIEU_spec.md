@@ -1,6 +1,63 @@
-# CIEU Log — Specification v1.0
+﻿# CIEU Log — Specification v1.0
 
 **Causal Intent-Execution Unit**
+
+---
+
+## A complete record at a glance
+
+Before the field-by-field spec, here is what one real CIEU record looks like in the Ledger:
+
+```json
+{
+  "seq": 451,
+  "session_id": "abc123",
+  "timestamp": "2026-03-04T16:59:22.341Z",
+  "X_t": {
+    "agent_name": "Claude Code",
+    "hostname": "dev-machine",
+    "pid": 18234
+  },
+  "U_t": {
+    "skill": "write_file",
+    "params": {
+      "path": "quant_backtest/config.json",
+      "content": "{\"endpoint\": \"https://api.market-data.staging.internal/v2/ohlcv\"}"
+    }
+  },
+  "Y_star_t": {
+    "constraints": {
+      "deny_content": ["staging.internal"],
+      "allowed_paths": ["./quant_backtest/**"]
+    },
+    "source": "intents/write_config.json",
+    "hash": "sha256:9f3a..."
+  },
+  "Y_t1": {
+    "result": true,
+    "exit_code": 0,
+    "duration_ms": 3.2
+  },
+  "R_t1": {
+    "passed": false,
+    "overall_severity": 0.9,
+    "risk_level": "CRITICAL",
+    "violations": [
+      {
+        "type": "DENY_CONTENT",
+        "field": "content",
+        "matched": "staging.internal",
+        "severity": 0.9,
+        "message": "Content contains forbidden pattern: 'staging.internal'"
+      }
+    ]
+  },
+  "prev_hash": "sha256:7c2b...",
+  "record_hash": "sha256:4e1d..."
+}
+```
+
+`prev_hash` chains this record to the previous one — any tampering breaks the chain and is detected by `k9log verify-log`.
 
 ---
 
@@ -355,3 +412,4 @@ logger.write_cieu({
 | Version | Date | Notes |
 |---------|------|-------|
 | 1.0 | 2026-03-07 | Initial public specification |
+

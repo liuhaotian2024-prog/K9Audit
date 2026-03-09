@@ -251,7 +251,47 @@ Every tool call automatically writes a CIEU record. Constraint violations are de
 
 ---
 
-## AI coding agent bug tracing
+## Constraint syntax reference
+
+`@k9` accepts two kinds of arguments:
+
+**Global constraints** — apply across all parameters:
+
+| Argument | Type | What it checks |
+|---|---|---|
+| `deny_content=["term"]` | list of strings | Fails if any parameter value contains any listed term (case-insensitive substring match) |
+| `allowed_paths=["./src/**"]` | list of glob patterns | Fails if any path-like parameter points outside the listed directories |
+
+**Per-parameter constraints** — keyed by the exact parameter name:
+
+| Constraint key | Example | What it checks |
+|---|---|---|
+| `max` | `amount={'max': 1000}` | Value must not exceed this number |
+| `min` | `amount={'min': 0}` | Value must not be below this number |
+| `max_length` | `query={'max_length': 500}` | String length must not exceed this |
+| `min_length` | `name={'min_length': 1}` | String length must be at least this |
+| `blocklist` | `env={'blocklist': ['prod']}` | Value must not equal or contain any listed term |
+| `allowlist` | `status={'allowlist': ['ok','fail']}` | Value must be one of the listed options |
+| `enum` | `level={'enum': [1,2,3]}` | Value must be exactly one of the listed values |
+| `regex` | `email={'regex': r'.+@.+'}` | Value must match this regular expression |
+| `type` | `count={'type': 'integer'}` | Value must be this type (`string`, `integer`, `float`, `boolean`, `list`, `dict`) |
+
+**Full example:**
+
+```python
+@k9(
+    deny_content=["staging.internal", "DROP TABLE"],
+    allowed_paths=["./project/**"],
+    amount={'max': 10000, 'min': 0},
+    recipient={'blocklist': ['re:.*@untrusted\\..*']},  # regex prefix re:
+    env={'enum': ['dev', 'staging']},
+    query={'max_length': 500, 'regex': r'^[a-zA-Z0-9 ]+$'}
+)
+def process(amount: float, recipient: str, env: str, query: str) -> dict:
+    ...
+```
+
+Constraints can also be stored in `~/.k9log/config/<function_name>.json` to keep them out of your source code. The decorator takes priority over the config file if both exist.
 
 20 minutes of log archaeology → 10 seconds with `k9log causal --last`.
 
@@ -273,6 +313,10 @@ k9log report --output out.html # generate an interactive causal graph report
 k9log health                   # system health check
 ```
 
+**`k9log verify-log`** outputs a `Chain integrity: OK` confirmation plus the total record count and the final hash. A clean result means no record has been silently modified since it was written. Run it before sending a report to a client, auditor, or compliance reviewer — it is cryptographic proof the evidence has not been tampered with.
+
+**`k9log report --output out.html`** generates a self-contained HTML file with an interactive causal graph, full CIEU record table, and violation summary. Share it with a team lead for post-incident review, attach it to a compliance audit, or send it to a client as evidence that agent actions were monitored and recorded.
+
 ---
 
 ## Real-time audit alerts
@@ -281,50 +325,33 @@ K9 Audit can push a structured CIEU alert the moment a deviation is written to t
 
 Every alert is a CIEU five-tuple, not a raw event ping. The goal is not just to tell you something happened. It is to make you fluent in reading causal evidence. A second message follows automatically 100ms later with the causal chain trace and root cause.
 
-**Initialize the config file:**
+Configure your alert channel with a single command — no config file editing needed:
 
 ```bash
-k9log alerting init
+# Telegram
+k9log alerts set-telegram --token YOUR_BOT_TOKEN --chat-id YOUR_CHAT_ID
+
+# Slack
+k9log alerts set-slack --webhook-url https://hooks.slack.com/services/...
+
+# Discord
+k9log alerts set-discord --webhook-url https://discord.com/api/webhooks/...
+
+# Custom webhook
+k9log alerts set-webhook --url https://your-endpoint.example.com/k9alert
+
+# Enable / disable the whole system
+k9log alerts enable
+k9log alerts disable
+
+# Check current status
+k9log alerts status
+
+# Configure Do Not Disturb (e.g. 11pm–8am UTC+8)
+k9log alerts set-dnd --start 23:00 --end 08:00 --offset 8
 ```
 
-This creates `~/.k9log/alerting.json` with all channels pre-filled as templates. Edit the ones you want to enable.
-
-Full schema — `~/.k9log/alerting.json`:
-
-```json
-{
-  "enabled": true,
-  "min_severity": 0.5,
-  "channels": {
-    "telegram": {
-      "enabled": false,
-      "bot_token": "YOUR_BOT_TOKEN",
-      "chat_id": "YOUR_CHAT_ID"
-    },
-    "slack": {
-      "enabled": false,
-      "webhook_url": "https://hooks.slack.com/services/..."
-    },
-    "discord": {
-      "enabled": false,
-      "webhook_url": "https://discord.com/api/webhooks/..."
-    },
-    "webhook": {
-      "enabled": false,
-      "url": "https://your-endpoint.example.com/k9alert",
-      "headers": {"Authorization": "Bearer YOUR_TOKEN"}
-    }
-  },
-  "dedup_window_seconds": 60,
-  "dnd": {
-    "enabled": false,
-    "start": "23:00",
-    "end": "08:00"
-  }
-}
-```
-
-Set `"enabled": true` on any channel you want active. `min_severity` controls the threshold (0.0–1.0) — only deviations above this score trigger an alert.
+Each `set-*` command writes the credential directly to `~/.k9log/alerting.json` and enables that channel immediately.
 
 ---
 
@@ -367,6 +394,8 @@ In this phase, K9 Audit is designed for zero-disruption observability. Deviation
 **Where is the Ledger stored, and how large does it get?**
 
 Records are written to `~/.k9log/logs/k9log.cieu.jsonl` — one JSON object per line, hash-chained, UTF-8 encoded. Each CIEU record is approximately 500 bytes. Ten thousand records occupy roughly 5MB. Run `k9log verify-log` at any time to verify chain integrity.
+
+On Windows, `~` resolves to `C:\Users\<your-username>`, so the full path is `C:\Users\<your-username>\.k9log\logs\k9log.cieu.jsonl`.
 
 ---
 
