@@ -43,6 +43,7 @@ The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256
 - [What K9 Audit is not](#what-k9-audit-is-not)
 - [How K9 Audit differs](#how-k9-audit-differs)
 - [Installation](#installation)
+- [First 5 minutes](#first-5-minutes)
 - [Works with](#works-with)
 - [Quick start](#quick-start)
 - [Constraint syntax reference](#constraint-syntax-reference)
@@ -182,6 +183,49 @@ from k9log import k9, set_agent_identity  # correct
 
 ---
 
+## First 5 minutes
+
+Copy this file, run it, then look at what K9 recorded. No configuration needed.
+
+```python
+# k9_quickstart.py
+from k9log import k9, set_agent_identity
+
+set_agent_identity(agent_name='MyAgent')
+
+@k9(
+    deny_content=["staging.internal"],   # flag if staging URL appears
+    allowed_paths=["./project/**"],       # flag if write goes outside project
+    amount={'max': 500}                   # flag if trade amount exceeds limit
+)
+def execute_trade(symbol: str, amount: float, endpoint: str) -> dict:
+    return {"status": "filled", "symbol": symbol, "amount": amount}
+
+# Call 1: clean — should pass
+execute_trade("AAPL", 100, "https://api.prod.exchange.com/v2")
+
+# Call 2: staging URL in endpoint — should flag
+execute_trade("AAPL", 100, "https://api.staging.internal/v2")
+
+# Call 3: amount exceeds limit — should flag  
+execute_trade("TSLA", 9999, "https://api.prod.exchange.com/v2")
+```
+
+Run it:
+
+```bash
+python k9_quickstart.py
+k9log stats          # 3 records, 2 violations
+k9log trace --last   # full CIEU five-tuple for the last violation
+k9log health         # coverage + integrity check
+```
+
+That's it. The Ledger is at `~/.k9log/logs/k9log.cieu.jsonl`. Every record is hash-chained and tamper-evident from this point on.
+
+→ [Continue to Quick start for Claude Code, LangChain, and other integrations](#quick-start)
+
+---
+
 ## Works with
 
 | Tool | Type | Setup |
@@ -297,14 +341,16 @@ chain = LLMChain(llm=llm, prompt=prompt, callbacks=[handler])
 
 `@k9` accepts two kinds of arguments:
 
-**Global constraints** — apply across all parameters:
+**Global constraints** — scan across *all* parameter values:
 
 | Argument | Type | What it checks |
 |---|---|---|
-| `deny_content=["term"]` | list of strings | Fails if any parameter value contains any listed term (case-insensitive substring match) |
-| `allowed_paths=["./src/**"]` | list of glob patterns | Fails if any path-like parameter points outside the listed directories |
+| `deny_content=["term"]` | list of strings | Fails if **any** parameter value contains any listed term (case-insensitive substring match) |
+| `allowed_paths=["./src/**"]` | list of glob patterns | Fails if **any** parameter whose value looks like a file path points outside the listed directories |
 
-**Per-parameter constraints** — keyed by the exact parameter name:
+> `deny_content` and `allowed_paths` do not target a specific parameter — they check every parameter in one pass. If you want to check only a specific parameter, use per-parameter `blocklist` or `regex` instead.
+
+**Per-parameter constraints** — keyed by the exact parameter name in your function signature:
 
 | Constraint key | Example | What it checks |
 |---|---|---|
@@ -318,13 +364,41 @@ chain = LLMChain(llm=llm, prompt=prompt, callbacks=[handler])
 | `regex` | `email={'regex': r'.+@.+'}` | Value must match this regular expression |
 | `type` | `count={'type': 'integer'}` | Value must be this type (`string`, `integer`, `float`, `boolean`, `list`, `dict`) |
 
-**Full example:**
+**Constraining the return value**
+
+Use `postcondition` and `invariant` in a config file or K9Contract docstring to constrain what the function *returns*:
+
+```json
+// ~/.k9log/config/get_balance.json
+{
+  "constraints": {
+    "postcondition": ["result >= 0"],
+    "invariant": ["account_id != ''"]
+  }
+}
+```
+
+Or in the function docstring (extracted automatically by the PostToolUse hook):
+
+```python
+def get_balance(account_id: str) -> float:
+    """
+    K9Contract:
+      postcondition: result >= 0
+      invariant: len(account_id) > 0
+    """
+    ...
+```
+
+`postcondition` runs after the function returns — `result` is the return value. `invariant` runs before execution — it checks input parameters. Both produce CIEU violations if they fail.
+
+**Full example showing all constraint types together:**
 
 ```python
 @k9(
-    deny_content=["staging.internal", "DROP TABLE"],
-    allowed_paths=["./project/**"],
-    amount={'max': 10000, 'min': 0},
+    deny_content=["staging.internal", "DROP TABLE"],  # scans ALL params
+    allowed_paths=["./project/**"],                   # scans ALL path-like params
+    amount={'max': 10000, 'min': 0},                  # specific to 'amount' param
     recipient={'blocklist': ['re:.*@untrusted\\..*']},  # regex prefix re:
     env={'enum': ['dev', 'staging']},
     query={'max_length': 500, 'regex': r'^[a-zA-Z0-9 ]+$'}

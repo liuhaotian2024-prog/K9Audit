@@ -265,3 +265,16 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ── NOTE ──────────────────────────────────────────────────────────────────────
+# This file is a standalone copy used by Install-K9Solo.ps1 when k9log is not
+# yet installed as a package. It is kept here solely for that installer script.
+#
+# If you are using `pip install k9audit-hook`, use the package version instead:
+#
+#   python -m k9log.hook       ← PreToolUse
+#   python -m k9log.hook_post  ← PostToolUse
+#
+# Do NOT reference this root-level hook.py directly in your .claude/settings.json.
+# ──────────────────────────────────────────────────────────────────────────────

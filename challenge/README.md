@@ -56,6 +56,75 @@ Run all four. Compare the time, the certainty of the conclusion, and the quality
 
 ---
 
+## How to bring your own hard case
+
+Not sure how to get your problem into K9? Here are the three entry points:
+
+**Path A — You use Claude Code (zero code change)**
+
+Drop `.claude/settings.json` at your project root and start a new Claude Code session. K9 records every tool call automatically. Reproduce the problematic behavior, then:
+
+```bash
+k9log health          # confirm recording is active
+k9log trace --last    # see the last deviation
+k9log causal --last   # trace the root cause chain
+k9log report --output my_case.html
+```
+
+**Path B — You have a Python agent or tool function**
+
+Wrap the relevant function with `@k9` and reproduce the problem:
+
+```python
+from k9log import k9, set_agent_identity
+
+set_agent_identity(agent_name='MyAgent')
+
+@k9(
+    # add constraints that should have been enforced:
+    deny_content=["prod", "production"],
+    allowed_paths=["./safe_dir/**"],
+)
+def the_function_that_misbehaved(path: str, content: str) -> bool:
+    ...  # your existing code unchanged
+```
+
+Run your agent. Then: `k9log trace --last` and `k9log causal --last`.
+
+**Path C — You have existing logs from a past incident**
+
+K9 can ingest structured event logs and reconstruct a CIEU ledger. If your logs are in JSON format (one event per line), map the fields:
+
+```python
+import json
+from k9log.logger import get_logger
+from k9log.identity import set_agent_identity
+
+set_agent_identity(agent_name='PostMortem')
+logger = get_logger()
+
+# Read your existing log
+with open('my_incident_log.jsonl') as f:
+    for line in f:
+        event = json.loads(line)
+        # Map your fields to CIEU five-tuple
+        record = {
+            'timestamp': event['ts'],
+            'X_t': {'agent_name': event.get('actor', 'unknown'), 'session_id': 'import'},
+            'U_t': {'skill': event['action'], 'params': event.get('params', {})},
+            'Y_star_t': {'constraints': {}, 'y_star_meta': {'unconstrained': True}},
+            'Y_t+1': {'status': 'success' if event.get('exit_code', 0) == 0 else 'error',
+                      'result': event.get('output', '')},
+            'R_t+1': {'passed': event.get('exit_code', 0) == 0,
+                      'violations': [], 'overall_severity': 0.0, 'risk_level': 'LOW'},
+        }
+        logger.write_cieu(record)
+
+print("Import complete. Now run: k9log causal --last")
+```
+
+---
+
 ## Submit your case
 
 One case per submission. Use this template.
