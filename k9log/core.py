@@ -34,6 +34,7 @@ import inspect
 import logging
 import os
 import socket
+import uuid as _uuid
 from datetime import datetime, timezone
 
 from k9log.logger import get_logger
@@ -103,6 +104,7 @@ def k9(func=None, **inline_constraints):
                                 v['message'] = _redact_value(v['message'])
                     cieu_record = {
                         'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'call_id': str(_uuid.uuid4()),
                         'X_t': x_t,
                         'U_t': u_t_redacted,
                         'Y_star_t': y_star_t,
@@ -191,6 +193,7 @@ def k9(func=None, **inline_constraints):
                 # 7. Write CIEU record
                 cieu_record = {
                     'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'call_id': str(_uuid.uuid4()),
                     'X_t': x_t,
                     'U_t': u_t_redacted,
                     'Y_star_t': y_star_t,

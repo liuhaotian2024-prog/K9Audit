@@ -142,7 +142,8 @@ def causal(step, last, export):
     if export:
         result = analyzer.find_root_causes(incident_step)
         import json as _json
-        out = pathlib.Path(export)
+        from pathlib import Path as _Path
+        out = _Path(export)
         out.write_text(_json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8')
         console.print(f'[green]Causal analysis exported to {export}[/green]')
 

@@ -125,12 +125,16 @@ def k9_wrap_class(
 
 
 def _add_outcome_tracking(func, func_name):
-    """Add update_outcome() call after @k9 wrapper for causal chain support."""
-    import functools, time, uuid as _uuid
+    """Add update_outcome() call after @k9 wrapper for causal chain support.
+
+    Reads the call_id that @k9 embedded in the CIEU record so that the
+    OUTCOME record pairs correctly with the pre-execution record in the
+    causal DAG.  Falls back to a fresh UUID if the ledger is unavailable.
+    """
+    import functools, time
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        tool_use_id = str(_uuid.uuid4())
         t0 = time.time()
         error = None
         result = None
@@ -141,6 +145,28 @@ def _add_outcome_tracking(func, func_name):
         finally:
             try:
                 from k9log.logger import get_logger
+                import json, uuid as _uuid
+                from pathlib import Path
+
+                # Read the call_id that @k9 just wrote as the last record
+                ledger = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
+                call_id = None
+                if ledger.exists():
+                    lines = ledger.read_text(encoding='utf-8').splitlines()
+                    for line in reversed(lines):
+                        if not line.strip():
+                            continue
+                        try:
+                            rec = json.loads(line)
+                            if (rec.get('event_type') != 'OUTCOME'
+                                    and rec.get('U_t', {}).get('skill') == func_name):
+                                call_id = rec.get('call_id')
+                                break
+                        except Exception:
+                            break
+                if not call_id:
+                    call_id = str(_uuid.uuid4())
+
                 outcome = {
                     "exit_code":    1 if error else 0,
                     "stdout":       str(result)[:500] if result is not None else "",
@@ -148,7 +174,7 @@ def _add_outcome_tracking(func, func_name):
                     "error":        str(error) if error else "",
                     "duration_sec": time.time() - t0,
                 }
-                get_logger().update_outcome(tool_use_id, outcome)
+                get_logger().update_outcome(call_id, outcome)
             except Exception:
                 pass
         if error:
