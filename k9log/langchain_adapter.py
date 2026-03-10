@@ -58,7 +58,7 @@ class K9CallbackHandler(BaseCallbackHandler):
             "tags":       tags or [],
             "metadata":   metadata or {},
         }
-        u_t = {"skill": tool_name, "params": {"input": input_str}}
+        u_t = {"skill": tool_name, "skill_module": "langchain", "params": {"input": input_str}}
         y_star = load_constraints(tool_name, {})
         constraints = y_star.get("constraints", {})
         violations = self._check_violations(input_str, constraints)
