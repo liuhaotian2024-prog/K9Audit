@@ -181,7 +181,7 @@ from k9log import k9, set_agent_identity  # correct
 
 ## First 5 minutes
 
-Copy this file, run it, then look at what K9 recorded. No configuration needed.
+The constraints you pass to `@k9()` are how you tell K9 what "out of bounds" means for your agent. Copy this file, run it, then look at what K9 recorded.
 
 ```python
 # k9_quickstart.py
