@@ -6,19 +6,15 @@
 ![Evidence](https://img.shields.io/badge/Evidence-SHA256_hash--chain-brightgreen.svg)
 ![Phase](https://img.shields.io/badge/Phase-Record_·_Trace_·_Verify_·_Report-orange.svg)
 
-**Using an LLM-based audit tool to audit another LLM-based agent is like one suspect signing another suspect's alibi.**
+Your agent ran overnight. The result is wrong. You open the logs — they tell you what it did, but not what it was *supposed* to do, and not where it started going off the rails.
 
-LLMs are probabilistic by nature. Auditing them with another probabilistic tool doesn't solve the problem — it compounds it. A system that is itself uncertain cannot render certain judgments about other systems. No LLM-based audit tool can escape this paradox.
+Your AI agent caused a problem in production. Your boss asks what happened. You pull up a terminal screenshot. It could have been edited. Nobody trusts it.
 
-K9 Audit is causal AI applied to the audit problem. It does not generate or guess — it verifies. Every agent action is recorded into a **CIEU Ledger** — a five-tuple causal evidence unit that captures precisely: who acted, what they did, what they were supposed to do, what actually happened, and how far the outcome diverged.
+You want to deploy an agent inside your company. Your manager asks: what happens if it goes out of bounds? You don't have a good answer. The project dies in the approval meeting.
 
-The CIEU Ledger is not a log. It is a causal evidence ledger. Records are SHA256 hash-chained. Nothing can be silently modified or retroactively falsified. Forensic-grade auditing demands visibility, transparency, tamper-proofness, and reproducibility. Only the mathematical certainty of causal AI can satisfy all four.
+**K9 Audit is built for exactly this kind of problem.**
 
-> K9 Audit is not about solving our puzzle. It is about finally solving yours.
-
-*Statistical AI moves fast. Causal AI makes sure it doesn't go off the rails — and when it does, the evidence is ironclad.*
-
-*AI coding agent wrote broken code? K9 alerts at the moment of write, delivers root cause within 100ms, and supports one-command tracing even if you missed the alert. From minutes of investigation to seconds of pinpointing.*
+Whether it's a single agent or a multi-agent collaboration, every action is recorded as a causal five-tuple: who acted and under what conditions, what it did, what it was supposed to do, what actually resulted, and how far the outcome diverged. Records are SHA256 hash-chained — cryptographically verifiable, tamper-evident after the fact. When something goes wrong, `k9log trace --last` gives you the root cause in under a second. This is not an LLM judging another LLM — K9 does not generate or guess. It records, measures, and proves.
 
 ---
 
