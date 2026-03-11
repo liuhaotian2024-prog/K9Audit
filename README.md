@@ -1,4 +1,4 @@
-# 🐕‍🦺 K9 Audit
+﻿# 🐕‍🦺 K9 Audit
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
@@ -24,7 +24,7 @@ Whether it's a single agent or a multi-agent collaboration, every action is reco
 → [Claude Code user](#option-1-claude-code--zero-config-hook-recommended) · [LangChain / AutoGen / CrewAI](#works-with) · [Any Python agent](#option-2-python-decorator-non-invasive-tracing)
 
 **Evaluating for your team or enterprise?**
-→ [What K9 Audit is](#what-k9-audit-is) · [How it differs from LangSmith / Langfuse](#how-k9-audit-differs) · [Trust boundary](#what-k9-audit-is-not) · [FAQ](#faq)
+→ [What K9 Audit is](#what-k9-audit-is) · [How it differs from LangSmith / Langfuse](#how-k9-audit-differs) · [EU AI Act Article 12](#eu-ai-act-compliance-article-12) · [Trust boundary](#what-k9-audit-is-not) · [FAQ](#faq)
 
 **Already integrated, going deeper?**
 → [Constraint syntax](#constraint-syntax-reference) · [Querying the Ledger](#querying-the-ledger-directly) · [CI/CD gate](#cicd-gate-failing-a-pipeline-on-violations) · [Real-time alerts](#real-time-audit-alerts)
@@ -38,6 +38,7 @@ Whether it's a single agent or a multi-agent collaboration, every action is reco
 - [What K9 Audit is](#what-k9-audit-is)
 - [What K9 Audit is not](#what-k9-audit-is-not)
 - [How K9 Audit differs](#how-k9-audit-differs)
+- [EU AI Act compliance (Article 12)](#eu-ai-act-compliance-article-12)
 - [Installation](#installation)
 - [First 5 minutes](#first-5-minutes)
 - [Works with](#works-with)
