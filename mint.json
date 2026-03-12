@@ -1,0 +1,30 @@
+﻿{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "K9 Audit",
+  "colors": {
+    "primary": "#0F172A",
+    "light": "#334155",
+    "dark": "#020617"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/liuhaotian2024-prog/K9Audit"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/cieu-five-tuple"
+      ]
+    }
+  ]
+}
