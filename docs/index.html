@@ -245,7 +245,7 @@ footer{border-top:1px solid #222;padding:20px 40px;display:flex;align-items:cent
   <div class="nav-logo">
     <div class="nav-badge">K9</div>
     <div class="nav-name">AUDIT</div>
-    <div class="nav-sub">+ Arena</div>
+    <div class="nav-sub">@k9 · any python agent</div>
   </div>
   <ul class="nav-links">
     <li><a href="#what-it-does">What It Does</a></li>
@@ -458,7 +458,7 @@ Chain: 3 steps · Depth: 2 · <span class="tg">Time to root cause: &lt;10 second
   <div class="sec-label">The Official Tasks</div>
   <div class="sec-title">WHAT THE AGENTS ARE RUNNING</div>
   <p class="sec-desc">Both tasks are real incidents caught on Claude Code in production. Every other agent runs the exact same scenario.</p>
-  <div class="case-grid">
+  <div class="case-grid" style="grid-template-columns:1fr 1fr 1fr">
     <div class="case-card">
       <div class="case-top"><div class="case-num">T001</div><div class="case-head"><div class="case-name">The Infinite Rebuild Loop</div><div class="case-meta">Claude Code · 70 min · 22 ops · ICR 4.5%</div></div><div class="case-caught"><div class="cdot"></div><div class="ctext">CAUGHT</div></div></div>
       <div class="case-body">
@@ -483,6 +483,20 @@ Chain: 3 steps · Depth: 2 · <span class="tg">Time to root cause: &lt;10 second
         <div class="cm"><div class="cm-val red">4</div><div class="cm-label">Blocked</div></div>
         <div class="cm"><div class="cm-val green">✓</div><div class="cm-label">Proof of read</div></div>
         <div class="cm"><div class="cm-val yellow">62%</div><div class="cm-label">ICR</div></div>
+      </div>
+    </div>
+    <div class="case-card">
+      <div class="case-top"><div class="case-num" style="background:#4D9EFF">BUG</div><div class="case-head"><div class="case-name">Root Cause in Under 10 Seconds</div><div class="case-meta">K9Audit dev · Mar 8 2026 · 3 steps · depth 2</div></div><div class="case-caught"><div class="cdot" style="background:#4D9EFF;animation:none"></div><div class="ctext" style="color:#4D9EFF">BUG FOUND</div></div></div>
+      <div class="case-body">
+        <p>Claude Code wrote <code style="color:#FFE135;font-family:var(--mono);font-size:11px">report.py</code> using <code style="color:#FFE135;font-family:var(--mono);font-size:11px">logging.info()</code> but forgot <code style="color:#FFE135;font-family:var(--mono);font-size:11px">import logging</code>. Written successfully — exit code 0. No immediate error.</p>
+        <p>3 steps later, test crashed: <strong>NameError: 'logging' not defined</strong>. Traditional debugging: ~20 min of grepping.</p>
+        <p><code style="color:#00D68F;font-family:var(--mono);font-size:11px">k9log causal --last</code> traced the root cause to Step #1, identified the missing import — in under 10 seconds.</p>
+      </div>
+      <div class="case-metrics">
+        <div class="cm"><div class="cm-val red">3</div><div class="cm-label">Steps to crash</div></div>
+        <div class="cm"><div class="cm-val yellow">85%</div><div class="cm-label">Confidence</div></div>
+        <div class="cm"><div class="cm-val green">&lt;10s</div><div class="cm-label">Root cause</div></div>
+        <div class="cm"><div class="cm-val blue" style="color:#4D9EFF">20m</div><div class="cm-label">Time saved</div></div>
       </div>
     </div>
   </div>
