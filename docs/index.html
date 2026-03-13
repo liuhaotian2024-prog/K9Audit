@@ -6,6 +6,11 @@
 <title>K9 Audit — Watch Your AI Agent Live</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* Fallback: ensure text is always visible even if fonts fail */
+  .hero-left, .hero-left * { color: inherit; }
+  body { color: #F0F0F0 !important; }
+</style>
+<style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
   --black: #080808;
@@ -60,6 +65,11 @@ nav {
   padding: 64px 48px;
   display: flex; flex-direction: column; justify-content: center;
   border-right: 1px solid var(--border);
+  background: var(--black);
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+  min-width: 0;
 }
 
 .hero-eyebrow {
