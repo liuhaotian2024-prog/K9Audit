@@ -47,7 +47,21 @@ nav { border-bottom: 1px solid #222; padding: 16px 40px; display: flex; align-it
 .hstat-num { font-family: 'Bebas Neue',sans-serif; font-size: 36px; color: #FFE135; line-height: 1; }
 .hstat-label { font-family: 'IBM Plex Mono',monospace; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 3px; }
 
-/* LIVE FEED */
+.mini-lb { border: 1px solid #222; overflow: hidden; margin-top: 8px; }
+.mini-lb-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #141414; border-bottom: 1px solid #222; }
+.mini-lb-title { font-family: 'IBM Plex Mono',monospace; font-size: 10px; letter-spacing: 2px; color: #FFE135; text-transform: uppercase; }
+.mini-lb-sub { font-family: 'IBM Plex Mono',monospace; font-size: 10px; color: #555; }
+.mini-lb-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid #222; gap: 12px; }
+.mini-lb-row.pending-row { opacity: 0.4; }
+.mini-lb-row.last-row { background: rgba(255,59,59,0.04); }
+.mini-rank { font-family: 'Bebas Neue',sans-serif; font-size: 18px; color: #333; min-width: 20px; }
+.mini-agent { font-size: 13px; color: #F0F0F0; flex: 1; }
+.mini-icr { font-family: 'IBM Plex Mono',monospace; font-size: 13px; font-weight: 600; }
+.mini-icr.muted { color: #333; font-weight: 400; font-size: 11px; }
+.mini-icr.red-icr { color: #FF3B3B; }
+.mini-lb-footer { padding: 10px 16px; font-family: 'IBM Plex Mono',monospace; font-size: 11px; color: #555; background: #0f0f0f; }
+
+
 .hero-right { background: #0f0f0f; display: flex; flex-direction: column; min-height: 520px; }
 .feed-header { padding: 16px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .feed-title { display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono',monospace; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #555; }
@@ -220,19 +234,18 @@ footer { border-top: 1px solid #222; padding: 24px 40px; display: flex; align-it
       <a href="#leaderboard" class="btn-yellow">See the Rankings →</a>
       <a href="#submit" class="btn-ghost">Submit Your Run</a>
     </div>
-    <div class="hero-stats">
-      <div class="hstat">
-        <div class="hstat-num">6</div>
-        <div class="hstat-label">Agents<br>benchmarked</div>
+    <div class="mini-lb">
+      <div class="mini-lb-header">
+        <span class="mini-lb-title">LEADERBOARD · TASK 001</span>
+        <span class="mini-lb-sub">ICR ↓</span>
       </div>
-      <div class="hstat">
-        <div class="hstat-num">2</div>
-        <div class="hstat-label">Official<br>tasks</div>
-      </div>
-      <div class="hstat">
-        <div class="hstat-num">0</div>
-        <div class="hstat-label">LLM calls<br>to judge</div>
-      </div>
+      <div class="mini-lb-row pending-row"><span class="mini-rank">—</span><span class="mini-agent">Cursor</span><span class="mini-icr muted">Awaiting run</span></div>
+      <div class="mini-lb-row pending-row"><span class="mini-rank">—</span><span class="mini-agent">Windsurf</span><span class="mini-icr muted">Awaiting run</span></div>
+      <div class="mini-lb-row pending-row"><span class="mini-rank">—</span><span class="mini-agent">Devin</span><span class="mini-icr muted">Awaiting run</span></div>
+      <div class="mini-lb-row pending-row"><span class="mini-rank">—</span><span class="mini-agent">OpenHands + GPT-4o</span><span class="mini-icr muted">Awaiting run</span></div>
+      <div class="mini-lb-row pending-row"><span class="mini-rank">—</span><span class="mini-agent">GitHub Copilot Agent</span><span class="mini-icr muted">Awaiting run</span></div>
+      <div class="mini-lb-row last-row"><span class="mini-rank" style="color:#555">L</span><span class="mini-agent">Claude Code</span><span class="mini-icr red-icr">4.5%</span></div>
+      <div class="mini-lb-footer">1 of 6 runs complete · <a href="#leaderboard" style="color:#FFE135;text-decoration:none">Full leaderboard →</a></div>
     </div>
   </div>
 
