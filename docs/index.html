@@ -1,4 +1,3 @@
-@"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -574,20 +573,20 @@ let count = 0;
 
 function buildEvent(e) {
   count++;
-  return ``
+  return `
   <div class="feed-event">
-    <div class="event-time">`${e.time}</div>
+    <div class="event-time">${e.time}</div>
     <div class="event-body">
-      <div class="event-op `${e.opClass}">`${e.op} &nbsp;<span style="color:#444;font-weight:400">`${e.file}</span></div>
-      <div class="event-intent">↳ `${e.intent}</div>
+      <div class="event-op ${e.opClass}">${e.op} &nbsp;<span style="color:#444;font-weight:400">${e.file}</span></div>
+      <div class="event-intent">↳ ${e.intent}</div>
       <div class="event-cieu">
         <span class="cieu-chip">X<sub>t</sub> <span>context</span></span>
-        <span class="cieu-chip">U<sub>t</sub> <span>`${e.action}</span></span>
-        <span class="cieu-chip">R <span>`${e.score}</span></span>
+        <span class="cieu-chip">U<sub>t</sub> <span>${e.action}</span></span>
+        <span class="cieu-chip">R <span>${e.score}</span></span>
       </div>
     </div>
-    <div class="event-badge badge-`${e.badge}">`${e.badgeText}</div>
-  </div>``;
+    <div class="event-badge badge-${e.badge}">${e.badgeText}</div>
+  </div>`;
 }
 
 const scroll = document.getElementById('feedScroll');
@@ -607,8 +606,3 @@ setInterval(() => {
 
 </body>
 </html>
-
-"@
-
-| Set-Content -Path "docs\index.html" -Encoding UTF8
-Write-Host "Done!" -ForegroundColor Green
