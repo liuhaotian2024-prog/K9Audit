@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -19,9 +19,9 @@
   --orange: #FF8C42;
   --text: #F0F0F0;
   --muted: #555;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'DM Sans', sans-serif;
-  --display: 'Bebas Neue', sans-serif;
+  --mono: ''IBM Plex Mono'', monospace;
+  --sans: ''DM Sans'', sans-serif;
+  --display: ''Bebas Neue'', sans-serif;
 }
 body { background: var(--black); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
 
@@ -137,7 +137,7 @@ nav {
 
 /* Gradient fade top/bottom */
 .feed-body::before, .feed-body::after {
-  content: ''; position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none;
+  content: ''''; position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none;
 }
 .feed-body::before { top: 0; height: 40px; background: linear-gradient(var(--dark), transparent); }
 .feed-body::after { bottom: 0; height: 80px; background: linear-gradient(transparent, var(--dark)); }
@@ -340,7 +340,7 @@ footer { border-top: 1px solid var(--border); padding: 24px 40px; display: flex;
     <h1>SEE EVERY MOVE<br>YOUR AI AGENT<br><em>MAKES.</em></h1>
 
     <p class="hero-sub">
-      K9 Audit watches your AI agent in real time — recording <strong>every action, intent, and constraint violation</strong> as a tamper-proof causal chain. When it breaks your rules, you'll know exactly when, why, and what it was trying to do.
+      K9 Audit watches your AI agent in real time — recording <strong>every action, intent, and constraint violation</strong> as a tamper-proof causal chain. When it breaks your rules, you''ll know exactly when, why, and what it was trying to do.
     </p>
 
     <div class="hero-actions">
@@ -450,7 +450,7 @@ footer { border-top: 1px solid var(--border); padding: 24px 40px; display: flex;
         <div class="case-story">
           <p>An AI agent was given a coding task. Over 70 minutes, it <strong>deleted and rebuilt the same module 8 times</strong>. Each rebuild was slightly different. None worked.</p>
           <p>After 22 operations, <strong>zero files were written</strong> to the project. The agent appeared busy and confident throughout.</p>
-          <p>K9's causal log showed every loop iteration — making the loop <strong>visible and provable</strong>, not just a vague feeling something went wrong.</p>
+          <p>K9''s causal log showed every loop iteration — making the loop <strong>visible and provable</strong>, not just a vague feeling something went wrong.</p>
         </div>
         <div class="case-metrics">
           <div class="metric"><div class="metric-val red">8×</div><div class="metric-label">Rebuild loops</div></div>
@@ -476,7 +476,7 @@ footer { border-top: 1px solid var(--border); padding: 24px 40px; display: flex;
         <div class="case-story">
           <p>The agent read a <code style="color:var(--yellow);font-family:var(--mono);font-size:12px">CONSTRAINTS.md</code> explicitly listing files it must never touch.</p>
           <p><strong>10 seconds later</strong>, it attempted to write to one of those exact files. K9 blocked it. It tried again. And again. <strong>4 total attempts across 2 projects.</strong></p>
-          <p>The causal log proves the agent <strong>read the constraint before violating it</strong> — a legally meaningful distinction from "didn't know the rule."</p>
+          <p>The causal log proves the agent <strong>read the constraint before violating it</strong> — a legally meaningful distinction from "didn''t know the rule."</p>
         </div>
         <div class="case-metrics">
           <div class="metric"><div class="metric-val yellow">10s</div><div class="metric-label">Read→violate</div></div>
@@ -589,14 +589,14 @@ function buildEvent(e) {
   </div>`;
 }
 
-const scroll = document.getElementById('feedScroll');
+const scroll = document.getElementById(''feedScroll'');
 // Render twice for seamless loop
-let html = '';
+let html = '''';
 for (let i = 0; i < 2; i++) events.forEach(e => html += buildEvent(e));
 scroll.innerHTML = html;
 
 // Live counter
-const counter = document.getElementById('evtCount');
+const counter = document.getElementById(''evtCount'');
 let n = 0;
 setInterval(() => {
   n++;
@@ -606,3 +606,4 @@ setInterval(() => {
 
 </body>
 </html>
+
