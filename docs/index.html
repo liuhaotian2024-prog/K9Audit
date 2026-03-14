@@ -1,3 +1,4 @@
+<!-- K9Audit Frontend v3 - WE NEED TO TALK -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1023,7 +1024,7 @@ function updateAuditCmd(){
   const fmt=document.getElementById('audit-format').value;
   let cmd=`k9log audit ${path} --checks ${checks.join(',')}`;
   if(fmt==='html') cmd+=' --output report.html';
-  if(fmt==='json') cmd+=' -  if(fmt==='json') cmd+=' --output report.json';
+  if(fmt==='json') cmd+=' --output report.json';
   document.getElementById('audit-cmd-block').innerHTML=cmd+'<button class="copy-btn" onclick="copyCode(this)">copy</button>';
 }
 
