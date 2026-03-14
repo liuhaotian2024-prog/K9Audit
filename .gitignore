@@ -65,7 +65,7 @@ desktop.ini
 
 k9_evidence_report*.html
 output/
-*.html
+k9_evidence_report*.html
 .coverage
 
 
