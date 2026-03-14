@@ -39,22 +39,42 @@ section{position:relative;z-index:1}
 .container{max-width:1100px;margin:0 auto;padding:0 40px}
 
 /* HERO */
-#hero{padding:140px 40px 80px;max-width:1100px;margin:0 auto}
-.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:100px;padding:6px 14px;font-size:11px;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:32px}
-.hero-tag::before{content:'';width:6px;height:6px;background:var(--amber);border-radius:50%;animation:pulse 2s infinite}
+#hero{padding:120px 40px 60px;max-width:1100px;margin:0 auto}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-h1{font-family:var(--sans);font-size:clamp(38px,6vw,68px);font-weight:800;line-height:1.05;color:var(--white);margin-bottom:24px;letter-spacing:-.02em}
-h1 em{font-style:normal;color:var(--amber)}
-.hero-sub{font-size:15px;color:var(--text2);max-width:600px;line-height:1.7;margin-bottom:40px}
-.hero-actions{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:56px}
+.hero-wntt{font-family:var(--sans);font-size:clamp(52px,9vw,110px);font-weight:800;color:var(--white);letter-spacing:-.03em;line-height:1;margin-bottom:24px}
+.hero-wntt-sub{font-family:var(--sans);font-size:clamp(20px,3vw,32px);font-weight:600;color:var(--text2);line-height:1.4}
+.hero-wntt-sub em{font-style:normal;color:var(--amber)}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap}
 .btn-primary{background:var(--amber);color:var(--bg);padding:13px 26px;border-radius:6px;font-family:var(--mono);font-size:13px;font-weight:700;text-decoration:none;letter-spacing:.05em;transition:all .2s;border:none;cursor:pointer;display:inline-block}
 .btn-primary:hover{background:var(--amber2);transform:translateY(-1px)}
 .btn-secondary{background:transparent;color:var(--text);padding:13px 26px;border-radius:6px;font-family:var(--mono);font-size:13px;text-decoration:none;letter-spacing:.05em;border:1px solid var(--border2);transition:all .2s;cursor:pointer;display:inline-block}
 .btn-secondary:hover{border-color:var(--amber);color:var(--amber)}
-.hero-terminal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:12px}
-.terminal-bar{background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px}
-.terminal-dot{width:10px;height:10px;border-radius:50%}
-.terminal-body{padding:20px 24px;line-height:2}
+/* SPLIT SCREEN */
+.hero-split{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px;align-items:stretch}
+.hero-feed{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.feed-header{background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:11px}
+.feed-title{color:var(--white);font-weight:700;font-family:var(--sans)}
+.feed-live{color:var(--teal);animation:pulse 1.5s infinite}
+.feed-count{color:var(--text3);margin-left:auto}
+.feed-body{flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-height:240px;overflow-y:auto}
+.feed-event{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;font-size:11px;border-left:3px solid var(--border2);background:var(--bg);animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.feed-event.critical{border-left-color:var(--red)}
+.feed-event.warning{border-left-color:var(--amber)}
+.feed-event.ok{border-left-color:var(--teal)}
+.feed-score{font-weight:700;min-width:36px;font-size:12px}
+.feed-score.critical{color:var(--red)}.feed-score.warning{color:var(--amber)}.feed-score.ok{color:var(--teal)}
+.feed-detail{color:var(--text2);flex:1}
+.feed-time{color:var(--text3);font-size:10px}
+.feed-footer{background:var(--bg3);border-top:1px solid var(--border);padding:8px 16px;display:flex;justify-content:space-between;font-size:10px}
+.feed-hash{color:var(--teal)}
+.hero-terminal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.terminal-tabs{background:var(--bg3);border-bottom:1px solid var(--border);display:flex}
+.t-tab{padding:10px 18px;font-family:var(--mono);font-size:11px;color:var(--text2);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.t-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.t-tab:hover:not(.active){color:var(--white)}
+.t-panel{display:none}.t-panel.active{display:block}
+.terminal-body{padding:20px 24px;line-height:2;font-size:12px}
 .t-dim{color:var(--text3)}.t-cmd{color:var(--amber)}.t-ok{color:var(--teal)}.t-err{color:var(--red)}.t-val{color:var(--white)}
 
 /* SHARED */
@@ -217,23 +237,51 @@ footer a:hover{color:var(--amber)}
 
 <!-- HERO -->
 <section id="hero">
-  <div class="hero-tag">Causal Audit Infrastructure · v0.2.0</div>
-  <h1>Your agent ran.<br><em>Did it follow your rules?</em></h1>
-  <p class="hero-sub">K9 Audit records every AI agent action as a tamper-proof causal chain — and tells you exactly when, why, and what it violated. Deterministic. Zero LLM tokens. Fully local.</p>
-  <div class="hero-actions">
+
+  <!-- ── HEADLINE ── -->
+  <div class="hero-wntt">WE NEED TO TALK.</div>
+  <div class="hero-wntt-sub">
+    Your agent did something.<br>
+    It's not telling you.<br>
+    <em>K9 Audit is.</em>
+  </div>
+
+  <div class="hero-actions" style="margin-top:40px">
     <a href="#integrate" class="btn-primary">Get started in 5 min →</a>
     <a href="#posthoc" class="btn-secondary">Audit existing codebase</a>
     <a href="https://github.com/liuhaotian2024-prog/K9Audit" class="btn-secondary" target="_blank">GitHub</a>
   </div>
-  <div class="hero-terminal">
-    <div class="terminal-bar">
-      <div class="terminal-dot" style="background:#ff5f57"></div>
-      <div class="terminal-dot" style="background:#febc2e"></div>
-      <div class="terminal-dot" style="background:#28c840"></div>
-      <span style="color:var(--text3);font-size:11px;margin-left:8px">k9log trace --last</span>
+
+  <!-- ── SPLIT SCREEN: Live Feed + Terminal ── -->
+  <div class="hero-split">
+
+    <!-- LEFT: Live CIEU Event Feed -->
+    <div class="hero-feed">
+      <div class="feed-header">
+        <span class="feed-title">Live CIEU Feed</span>
+        <span class="feed-live">● live</span>
+        <span class="feed-count" id="feed-count">Events: <strong id="event-count">0</strong></span>
+      </div>
+      <div class="feed-body" id="feed-body">
+        <!-- events injected by JS -->
+      </div>
+      <div class="feed-footer">
+        <span class="t-ok">k9log verify-log → chain intact</span>
+        <span class="feed-hash">✓ SHA256 VERIFIED</span>
+      </div>
     </div>
-    <div class="terminal-body">
-<span class="t-dim">seq=451  2026-03-04 16:59:22 UTC</span>
+
+    <!-- RIGHT: Terminal Output -->
+    <div class="hero-terminal">
+      <div class="terminal-tabs">
+        <button class="t-tab active" onclick="switchTerm('trace',this)">k9log trace --last</button>
+        <button class="t-tab" onclick="switchTerm('causal',this)">k9log causal --last</button>
+      </div>
+
+      <div class="t-panel active" id="term-trace">
+        <div class="terminal-body">
+<span class="t-err">❌ CRITICAL VIOLATION  seq=451</span>
+<span class="t-dim">2026-03-04 16:59:22 UTC</span>
 
 <span class="t-dim">─── X_t  Context ──────────────────</span>
   agent:   <span class="t-val">Claude Code</span>  <span class="t-dim">(session: abc123)</span>
@@ -241,16 +289,38 @@ footer a:hover{color:var(--amber)}
 
 <span class="t-dim">─── U_t  What happened ────────────</span>
   target:  <span class="t-val">quant_backtest/config.json</span>
-  content: <span class="t-err">"https://api.market-data.staging.internal/v2"</span>
+  content: <span class="t-err">"api.market-data.staging.internal"</span>
 
 <span class="t-dim">─── Y*_t  Intent Contract ─────────</span>
-  constraint: <span class="t-cmd">deny_content</span> → <span class="t-err">["staging.internal"]</span>
+  rule:    <span class="t-cmd">deny_content</span> → <span class="t-err">["staging.internal"]</span>
 
 <span class="t-dim">─── R_t+1  Assessment ─────────────</span>
   severity: <span class="t-err">0.90 CRITICAL</span>
-  finding:  <span class="t-val">content contains forbidden pattern</span>
-  <span class="t-ok">→ Three attempts. 41 min apart. All recorded.</span>
+  <span class="t-ok">→ 3 attempts · 41 min apart · all recorded</span>
+        </div>
+      </div>
+
+      <div class="t-panel" id="term-causal">
+        <div class="terminal-body">
+<span class="t-ok">ROOT CAUSE FOUND</span>
+<span class="t-dim">Auto-detected failure at Step #2</span>
+
+<span class="t-dim">Causal Chain Analysis</span>
+<span class="t-val">├── Root Causes</span>
+<span class="t-val">│  └── Step #1 — Write (report.py)</span>
+<span class="t-err">│      ├── Uses "logging" — missing import</span>
+<span class="t-err">│      └── Missing: import logging</span>
+<span class="t-val">└── Full Chain</span>
+<span class="t-dim">  Depth 0 FAIL  Step #2 — Bash</span>
+<span class="t-dim">  Depth 1 OK    Step #1 — Write</span>
+<span class="t-dim">  Depth 2 OK    Step #0 — Write</span>
+
+<span class="t-ok">→ Root cause: &lt;10 seconds</span>
+<span class="t-dim">→ Manual grep: ~20 minutes</span>
+        </div>
+      </div>
     </div>
+
   </div>
 </section>
 
@@ -620,19 +690,19 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
         </div>
         <div class="output-content active" id="out-decorator">
           <div class="output-block">
-            <div class="output-block-header"><span>k9_decorator.py</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-decorator')">copy</button></div>
+            <div class="output-block-header"><span>k9_decorator.py</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-decorator',this)">copy</button></div>
             <pre id="code-decorator"></pre>
           </div>
         </div>
         <div class="output-content" id="out-constraints">
           <div class="output-block">
-            <div class="output-block-header"><span>CONSTRAINTS.md</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-constraints')">copy</button></div>
+            <div class="output-block-header"><span>CONSTRAINTS.md</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-constraints',this)">copy</button></div>
             <pre id="code-constraints"></pre>
           </div>
         </div>
         <div class="output-content" id="out-intent">
           <div class="output-block">
-            <div class="output-block-header"><span>~/.k9log/intents/[skill].json</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-intent')">copy</button></div>
+            <div class="output-block-header"><span>~/.k9log/intents/[skill].json</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-intent',this)">copy</button></div>
             <pre id="code-intent"></pre>
           </div>
         </div>
@@ -842,7 +912,7 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
   <div class="container">
     <div class="section-label">K9 Arena</div>
     <h2 class="section-title" style="font-size:28px">How do agents rank?</h2>
-    <p class="section-sub" style="margin-bottom:24px">Same task. Same constraints. Ranked by Intent Conformance Rate. <strong style="color:var(--amber)">1 of 6 runs complete — <a href="mailto:liuhaotian2024@gmail.com?subject=K9 Arena Submission" style="color:var(--amber)">help fill this.</a></strong></p>
+    <p class="section-sub" style="margin-bottom:24px">Same task. Same constraints. Ranked by Intent Conformance Rate. <strong style="color:var(--amber)">1 of 6 runs complete — <a href="/cdn-cgi/l/email-protection#2a46435f424b455e434b44181a181e6a4d474b43460449454715595f48404f495e1761130a6b584f444b0a795f4847435959434544" style="color:var(--amber)">help fill this.</a></strong></p>
     <table class="lb-table">
       <thead><tr><th>#</th><th>Agent</th><th>ICR (Task 001)</th><th>ICR (Task 002)</th><th>Status</th></tr></thead>
       <tbody>
@@ -868,11 +938,11 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
   <div style="display:flex;gap:24px">
     <a href="https://pypi.org/project/k9audit-hook/" target="_blank">PyPI</a>
     <a href="https://github.com/liuhaotian2024-prog/K9Audit" target="_blank">GitHub</a>
-    <a href="mailto:liuhaotian2024@gmail.com">Contact</a>
+    <a href="/cdn-cgi/l/email-protection#91fdf8e4f9f0fee5f8f0ffa3a1a3a5d1f6fcf0f8fdbff2fefc">Contact</a>
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const tags={deny:[],allow:[],denyPath:[]};
 function addTag(e,type){if(e.key!=='Enter')return;e.preventDefault();const ids={deny:'denyInput',allow:'allowInput',denyPath:'denyPathInput'};const input=document.getElementById(ids[type]);const val=input.value.trim();if(!val)return;tags[type].push(val);input.value='';renderTags(type);updateOutput()}
 function renderTags(type){const wrapIds={deny:'denyWrap',allow:'allowWrap',denyPath:'denyPathWrap'};const inputIds={deny:'denyInput',allow:'allowInput',denyPath:'denyPathInput'};const wrap=document.getElementById(wrapIds[type]);const input=document.getElementById(inputIds[type]);wrap.innerHTML='';tags[type].forEach((t,i)=>{const pill=document.createElement('div');pill.className='tag-pill';pill.innerHTML=`${t}<span class="remove" onclick="removeTag('${type}',${i})">×</span>`;wrap.appendChild(pill)});wrap.appendChild(input)}
@@ -909,8 +979,11 @@ function updateOutput(){
 function switchTab(id,btn){document.querySelectorAll('.wizard-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.wizard-tab').forEach(b=>b.classList.remove('active'));document.getElementById('panel-'+id).classList.add('active');btn.classList.add('active')}
 function switchOutputTab(id,btn){document.querySelectorAll('.output-tab').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.output-content').forEach(c=>c.classList.remove('active'));btn.classList.add('active');document.getElementById('out-'+id).classList.add('active')}
 
-function copyCode(btn){const block=btn.parentElement;const text=block.innerText.replace(/^copy$|^copied$/gm,'').trim();navigator.clipboard.writeText(text).then(()=>{btn.textContent='copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='copy';btn.classList.remove('copied')},1500)})}
-function copyPre(id){const text=document.getElementById(id).textContent;navigator.clipboard.writeText(text).then(()=>{alert('Copied!')})}
+function writeClipboard(text,onSuccess){try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(onSuccess).catch(()=>fallbackCopy(text,onSuccess))}else{fallbackCopy(text,onSuccess)}}catch(e){fallbackCopy(text,onSuccess)}}
+function fallbackCopy(text,onSuccess){const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');if(onSuccess)onSuccess()}catch(e){}document.body.removeChild(ta)}
+function showCopied(btn){const orig=btn.textContent;btn.textContent='✓ copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied')},1600)}
+function copyCode(btn){const block=btn.parentElement;const clone=block.cloneNode(true);clone.querySelectorAll('.copy-btn').forEach(b=>b.remove());const text=clone.innerText.trim();writeClipboard(text,()=>showCopied(btn))}
+function copyPre(id,btn){const text=document.getElementById(id).textContent.trim();writeClipboard(text,()=>{if(btn)showCopied(btn)})}
 
 let activeChannel='telegram';
 function selectChannel(ch,card){document.querySelectorAll('.channel-card').forEach(c=>c.classList.remove('selected'));document.querySelectorAll('.config-panel').forEach(p=>p.classList.remove('active'));card.classList.add('selected');document.getElementById('cfg-'+ch).classList.add('active');activeChannel=ch;updateAlertConfig()}
@@ -936,7 +1009,7 @@ function updateAlertConfig(){
   document.getElementById('alert-config-output').textContent=JSON.stringify(config,null,2);
 }
 
-function copyAlertConfig(){const text=document.getElementById('alert-config-output').textContent;navigator.clipboard.writeText(text).then(()=>{const btn=document.querySelector('#alert-output-block .copy-btn');btn.textContent='copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='copy';btn.classList.remove('copied')},1500)})}
+function copyAlertConfig(){const text=document.getElementById('alert-config-output').textContent.trim();const btn=document.querySelector('#alert-output-block .copy-btn');writeClipboard(text,()=>showCopied(btn))}
 
 function updateAuditCmd(){
   const path=document.getElementById('audit-path').value||'./my-project';
@@ -950,11 +1023,45 @@ function updateAuditCmd(){
   const fmt=document.getElementById('audit-format').value;
   let cmd=`k9log audit ${path} --checks ${checks.join(',')}`;
   if(fmt==='html') cmd+=' --output report.html';
-  if(fmt==='json') cmd+=' --output report.json';
+  if(fmt==='json') cmd+=' -  if(fmt==='json') cmd+=' --output report.json';
   document.getElementById('audit-cmd-block').innerHTML=cmd+'<button class="copy-btn" onclick="copyCode(this)">copy</button>';
 }
 
+// ── INIT ──
 updateOutput();updateAlertConfig();updateAuditCmd();
+
+// ── LIVE FEED ANIMATION ──
+const feedEvents=[
+  {type:'ok',     score:'1.00',detail:'write_file → ./src/utils.py — conformant',      time:'16:57:10'},
+  {type:'ok',     score:'0.95',detail:'read_file → CONSTRAINTS.md — within scope',      time:'16:57:44'},
+  {type:'warning',score:'0.72',detail:'read_file → path outside allowed_paths',          time:'16:58:01'},
+  {type:'ok',     score:'0.98',detail:'execute_bash → pytest ./tests — conformant',      time:'16:58:33'},
+  {type:'critical',score:'0.90',detail:'write_file → staging.internal URL detected',     time:'16:59:22'},
+  {type:'critical',score:'0.90',detail:'write_config → attempt #2 · same violation',     time:'17:00:03'},
+  {type:'ok',     score:'1.00',detail:'read_file → README.md — within scope',            time:'17:00:44'},
+  {type:'critical',score:'0.90',detail:'write_config → attempt #3 · chain recorded',     time:'17:01:15'},
+];
+let feedIdx=0,eventTotal=0;
+function addFeedEvent(){
+  const e=feedEvents[feedIdx%feedEvents.length];feedIdx++;eventTotal++;
+  const body=document.getElementById('feed-body');if(!body)return;
+  const div=document.createElement('div');
+  div.className='feed-event '+e.type;
+  div.innerHTML='<span class="feed-score '+e.type+'">'+e.score+'</span><span class="feed-detail">'+e.detail+'</span><span class="feed-time">'+e.time+'</span>';
+  body.insertBefore(div,body.firstChild);
+  if(body.children.length>8)body.removeChild(body.lastChild);
+  const cnt=document.getElementById('event-count');if(cnt)cnt.textContent=eventTotal;
+}
+for(let i=0;i<5;i++)addFeedEvent();
+setInterval(addFeedEvent,2200);
+
+// ── TERMINAL TABS ──
+function switchTerm(id,btn){
+  document.querySelectorAll('.t-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.t-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('term-'+id).classList.add('active');
+  btn.classList.add('active');
+}
 </script>
 </body>
 </html>
