@@ -265,6 +265,32 @@ footer a:hover{color:var(--amber)}
       <span>✓ Available on PyPI</span>
     </div>
   </div>
+  <!-- ── K9 is not... ── -->
+  <section style="padding:48px 24px;max-width:900px;margin:0 auto">
+    <h2 style="font-size:13px;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:24px;font-family:var(--mono)">What K9 is / is not</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:8px;padding:20px">
+        <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:12px;letter-spacing:.08em">WHAT K9 DOES</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text)">
+          <span>→ Records intent vs action vs outcome</span>
+          <span>→ Flags silent deviations immediately</span>
+          <span>→ Preserves causal evidence locally</span>
+          <span>→ Traces root cause across steps</span>
+          <span>→ Verifies chain integrity cryptographically</span>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--text3);border-radius:8px;padding:20px">
+        <div style="font-size:11px;color:var(--text2);font-weight:700;margin-bottom:12px;letter-spacing:.08em">WHAT K9 DOES NOT DO</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text2)">
+          <span>✗ Does not block execution in Phase 1</span>
+          <span>✗ Does not upload data to cloud</span>
+          <span>✗ Does not use LLM scoring</span>
+          <span>✗ Does not crash your agent</span>
+          <span>✗ Does not see uninstrumented paths</span>
+        </div>
+      </div>
+    </div>
+  </section>
   <!-- ── SPLIT SCREEN: Live Feed + Terminal ── -->
   <div class="hero-split">
 
@@ -366,32 +392,6 @@ setTimeout(()=>{addFeedEvent();setInterval(addFeedEvent,2500);},800);
 
 <!-- MODES -->
 
-  <!-- ── K9 is not... ── -->
-  <section style="padding:48px 24px;max-width:900px;margin:0 auto">
-    <h2 style="font-size:13px;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:24px;font-family:var(--mono)">What K9 is / is not</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:8px;padding:20px">
-        <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:12px;letter-spacing:.08em">WHAT K9 DOES</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text)">
-          <span>→ Records intent vs action vs outcome</span>
-          <span>→ Flags silent deviations immediately</span>
-          <span>→ Preserves causal evidence locally</span>
-          <span>→ Traces root cause across steps</span>
-          <span>→ Verifies chain integrity cryptographically</span>
-        </div>
-      </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--text3);border-radius:8px;padding:20px">
-        <div style="font-size:11px;color:var(--text2);font-weight:700;margin-bottom:12px;letter-spacing:.08em">WHAT K9 DOES NOT DO</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text2)">
-          <span>✗ Does not block execution in Phase 1</span>
-          <span>✗ Does not upload data to cloud</span>
-          <span>✗ Does not use LLM scoring</span>
-          <span>✗ Does not crash your agent</span>
-          <span>✗ Does not see uninstrumented paths</span>
-        </div>
-      </div>
-    </div>
-  </section>
 <section id="modes" class="sec-pad">
   <div class="container">
     <div class="section-label">Two ways to use K9</div>
