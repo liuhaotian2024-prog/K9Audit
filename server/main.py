@@ -28,7 +28,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -228,3 +228,44 @@ def workspace_status(workspace_id: str = Depends(verify_token)):
         "highest_seq":    highest,
         "ledger_path":    str(ledger_path),
     }
+
+@app.get("/api/records")
+def get_records(
+    limit:      int = 100,
+    offset:     int = 0,
+    violations_only: bool = False,
+    workspace_id: str = Depends(verify_token),
+):
+    """Return CIEU records for the authenticated workspace with pagination."""
+    ledger_path = _workspace_ledger(workspace_id)
+    if not ledger_path.exists():
+        return {"records": [], "total": 0, "offset": offset, "limit": limit}
+
+    all_records = []
+    with open(ledger_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+                if rec.get("event_type") == "SESSION_END":
+                    continue
+                if violations_only and rec.get("R_t+1", {}).get("passed", True):
+                    continue
+                all_records.append(rec)
+            except Exception:
+                continue
+
+    total = len(all_records)
+    page  = all_records[offset: offset + limit]
+    return {"records": page, "total": total, "offset": offset, "limit": limit}
+
+@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def dashboard():
+    """Serve the K9 Audit Dashboard (no CORS issues)."""
+    from pathlib import Path
+    html_path = Path(__file__).parent / "dashboard.html"
+    if not html_path.exists():
+        return HTMLResponse("<h2>dashboard.html not found in server/</h2>", status_code=404)
+    return HTMLResponse(html_path.read_text(encoding="utf-8"))
