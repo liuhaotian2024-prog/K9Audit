@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K9 Audit — Causal Audit Infrastructure for AI Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c0f;
+  --bg2: #0f1215;
+  --bg3: #141820;
+  --border: #1e2530;
+  --border2: #2a3545;
+  --amber: #f0a500;
+  --amber2: #ffcc44;
+  --teal: #00c9a7;
+  --red: #ff4d6d;
+  --text: #c8d4e0;
+  --text2: #7a8fa8;
+  --text3: #4a5a6e;
+  --white: #e8f0f8;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;line-height:1.6;overflow-x:hidden}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,12,15,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 40px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-family:var(--sans);font-weight:800;font-size:18px;color:var(--amber);letter-spacing:.05em;text-decoration:none}
+.nav-logo span{color:var(--text2);font-weight:400;font-size:13px;margin-left:8px}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{color:var(--text2);text-decoration:none;font-size:12px;letter-spacing:.08em;text-transform:uppercase;transition:color .2s}
+.nav-links a:hover{color:var(--amber)}
+.nav-cta{background:var(--amber);color:var(--bg);padding:8px 20px;border-radius:4px;font-size:12px;font-weight:700;text-decoration:none;transition:background .2s}
+.nav-cta:hover{background:var(--amber2)}
+section{position:relative;z-index:1}
+.container{max-width:1100px;margin:0 auto;padding:0 40px}
+
+/* HERO */
+#hero{padding:120px 40px 60px;max-width:1100px;margin:0 auto}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero-wntt{font-family:var(--sans);font-size:clamp(52px,9vw,110px);font-weight:800;color:var(--white);letter-spacing:-.03em;line-height:1;margin-bottom:24px}
+.hero-wntt-sub{font-family:var(--sans);font-size:clamp(20px,3vw,32px);font-weight:600;color:var(--text2);line-height:1.4}
+.hero-wntt-sub em{font-style:normal;color:var(--amber)}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap}
+.btn-primary{background:var(--amber);color:var(--bg);padding:13px 26px;border-radius:6px;font-family:var(--mono);font-size:13px;font-weight:700;text-decoration:none;letter-spacing:.05em;transition:all .2s;border:none;cursor:pointer;display:inline-block}
+.btn-primary:hover{background:var(--amber2);transform:translateY(-1px)}
+.btn-secondary{background:transparent;color:var(--text);padding:13px 26px;border-radius:6px;font-family:var(--mono);font-size:13px;text-decoration:none;letter-spacing:.05em;border:1px solid var(--border2);transition:all .2s;cursor:pointer;display:inline-block}
+.btn-secondary:hover{border-color:var(--amber);color:var(--amber)}
+/* SPLIT SCREEN */
+.hero-split{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px;align-items:stretch}
+.hero-feed{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.feed-header{background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:11px}
+.feed-title{color:var(--white);font-weight:700;font-family:var(--sans)}
+.feed-live{color:var(--teal);animation:pulse 1.5s infinite}
+.feed-count{color:var(--text3);margin-left:auto}
+.feed-body{flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-height:240px;overflow-y:auto}
+.feed-event{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;font-size:11px;border-left:3px solid var(--border2);background:var(--bg);animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.feed-event.critical{border-left-color:var(--red)}
+.feed-event.warning{border-left-color:var(--amber)}
+.feed-event.ok{border-left-color:var(--teal)}
+.feed-score{font-weight:700;min-width:36px;font-size:12px}
+.feed-score.critical{color:var(--red)}.feed-score.warning{color:var(--amber)}.feed-score.ok{color:var(--teal)}
+.feed-detail{color:var(--text2);flex:1}
+.feed-time{color:var(--text3);font-size:10px}
+.feed-footer{background:var(--bg3);border-top:1px solid var(--border);padding:8px 16px;display:flex;justify-content:space-between;font-size:10px}
+.feed-hash{color:var(--teal)}
+.hero-terminal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.terminal-tabs{background:var(--bg3);border-bottom:1px solid var(--border);display:flex}
+.t-tab{padding:10px 18px;font-family:var(--mono);font-size:11px;color:var(--text2);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.t-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.t-tab:hover:not(.active){color:var(--white)}
+.t-panel{display:none}.t-panel.active{display:block}
+.terminal-body{padding:20px 24px;line-height:2;font-size:12px}
+.t-dim{color:var(--text3)}.t-cmd{color:var(--amber)}.t-ok{color:var(--teal)}.t-err{color:var(--red)}.t-val{color:var(--white)}
+
+/* SHARED */
+.sec-pad{padding:80px 0;border-top:1px solid var(--border)}
+.section-label{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);margin-bottom:12px}
+.section-title{font-family:var(--sans);font-size:clamp(24px,4vw,40px);font-weight:700;color:var(--white);margin-bottom:16px;letter-spacing:-.01em}
+.section-sub{color:var(--text2);max-width:560px;margin-bottom:48px;font-size:14px;line-height:1.7}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+
+/* MODE CARDS */
+.modes-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.mode-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px;cursor:pointer;transition:all .25s}
+.mode-card:hover{border-color:var(--amber);transform:translateY(-2px)}
+.mode-icon{width:48px;height:48px;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px}
+.mode-card h3{font-family:var(--sans);font-size:20px;font-weight:700;color:var(--white);margin-bottom:10px}
+.mode-card p{color:var(--text2);font-size:13px;line-height:1.6;margin-bottom:20px}
+.mode-tag{display:inline-block;padding:4px 10px;border-radius:4px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.tag-live{background:rgba(0,201,167,.15);color:var(--teal)}
+.tag-posthoc{background:rgba(240,165,0,.15);color:var(--amber)}
+
+/* WIZARD */
+.wizard-tabs{display:flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px;margin-bottom:32px;flex-wrap:wrap}
+.wizard-tab{padding:9px 18px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);letter-spacing:.05em;transition:all .2s;display:flex;align-items:center;gap:7px}
+.wizard-tab.active{background:var(--amber);color:var(--bg);font-weight:700}
+.wizard-tab:hover:not(.active){color:var(--white);background:var(--bg3)}
+.wizard-panel{display:none}
+.wizard-panel.active{display:block}
+.wizard-layout{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.wizard-steps{display:flex;flex-direction:column;gap:20px}
+.wizard-step{display:flex;gap:16px;align-items:flex-start}
+.step-num{width:28px;height:28px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--amber);flex-shrink:0;margin-top:2px}
+.step-content h4{color:var(--white);font-size:13px;font-weight:700;margin-bottom:6px;font-family:var(--sans)}
+.step-content p{color:var(--text2);font-size:12px;line-height:1.6;margin-bottom:10px}
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:12px;color:var(--text);position:relative;white-space:pre;overflow-x:auto;line-height:1.7}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.copy-btn:hover{color:var(--amber);border-color:var(--amber)}
+.copy-btn.copied{color:var(--teal);border-color:var(--teal)}
+.wizard-preview{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:72px}
+.preview-header{background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 16px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.preview-header::before{content:'●';color:var(--teal);font-size:8px}
+.preview-body{padding:20px;font-size:12px;line-height:2}
+
+/* BUILDER */
+.builder-form{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px}
+.form-group{margin-bottom:22px}
+.form-label{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;font-weight:700}
+.form-sublabel{font-size:11px;color:var(--text3);margin-bottom:8px;display:block}
+.form-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--amber)}
+.form-input::placeholder{color:var(--text3)}
+.tag-input-wrap{display:flex;flex-wrap:wrap;gap:6px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px;min-height:42px;cursor:text;transition:border-color .2s}
+.tag-input-wrap:focus-within{border-color:var(--amber)}
+.tag-pill{background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.3);color:var(--amber);padding:3px 10px;border-radius:100px;font-size:11px;display:flex;align-items:center;gap:6px}
+.tag-pill .remove{cursor:pointer;color:var(--text3);font-size:14px;line-height:1;transition:color .2s}
+.tag-pill .remove:hover{color:var(--red)}
+.tag-real-input{background:transparent;border:none;outline:none;font-family:var(--mono);font-size:12px;color:var(--text);min-width:120px;flex:1}
+.builder-output{position:sticky;top:72px}
+.output-tabs{display:flex;gap:4px;margin-bottom:12px}
+.output-tab{padding:7px 16px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--mono);transition:all .2s}
+.output-tab.active{background:var(--bg3);border-color:var(--border2);color:var(--white)}
+.output-content{display:none}
+.output-content.active{display:block}
+.output-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.output-block-header{background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text2)}
+.output-block pre{padding:20px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--text);overflow-x:auto;white-space:pre}
+
+/* ALERTS */
+.alert-channels{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:36px}
+.channel-card{background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:22px 16px;cursor:pointer;transition:all .2s;text-align:center}
+.channel-card.selected{border-color:var(--amber);background:rgba(240,165,0,.05)}
+.channel-card:hover:not(.selected){border-color:var(--border2)}
+.channel-icon{font-size:26px;margin-bottom:8px}
+.channel-name{font-family:var(--sans);font-size:14px;font-weight:700;color:var(--white);margin-bottom:4px}
+.channel-desc{font-size:11px;color:var(--text3)}
+.alert-config-area{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.alert-form{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px}
+.config-panel{display:none}
+.config-panel.active{display:block}
+.web-dashboard-preview{background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:16px}
+.dash-header{background:var(--bg3);padding:10px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);display:flex;align-items:center;justify-content:space-between}
+.dash-live{color:var(--teal);display:flex;align-items:center;gap:6px;font-size:11px}
+.dash-live::before{content:'●';animation:pulse 1.5s infinite}
+.dash-events{padding:12px 16px;display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
+.dash-event{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:6px;padding:10px 14px;font-size:11px;display:flex;align-items:center;gap:12px}
+.dash-event.critical{border-left-color:var(--red)}
+.dash-event.warning{border-left-color:var(--amber)}
+.dash-event.ok{border-left-color:var(--teal)}
+.event-score{font-weight:700;min-width:32px}
+.event-score.critical{color:var(--red)}
+.event-score.warning{color:var(--amber)}
+.event-score.ok{color:var(--teal)}
+.event-detail{color:var(--text2);flex:1}
+.event-time{color:var(--text3);font-size:10px}
+
+/* POST-HOC */
+.audit-form{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px}
+.audit-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+.audit-option{background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2)}
+.audit-option input[type="checkbox"]{accent-color:var(--amber)}
+.audit-option:hover{border-color:var(--amber);color:var(--text)}
+.audit-output{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.audit-output-header{background:var(--bg3);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.audit-output-title{font-family:var(--sans);font-size:14px;font-weight:700;color:var(--white)}
+.audit-output-body{padding:20px}
+.finding{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:12px}
+.finding.high{border-left-color:var(--red)}
+.finding.med{border-left-color:var(--amber)}
+.finding.low{border-left-color:var(--teal)}
+.finding-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.finding-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--white)}
+.finding-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.08em}
+.badge-high{background:rgba(255,77,109,.15);color:var(--red)}
+.badge-med{background:rgba(240,165,0,.15);color:var(--amber)}
+.badge-low{background:rgba(0,201,167,.15);color:var(--teal)}
+.finding-detail{font-size:12px;color:var(--text2);line-height:1.6}
+.finding-cmd{font-size:11px;color:var(--amber);margin-top:8px}
+
+/* LEADERBOARD */
+.lb-table{width:100%;border-collapse:collapse;font-size:12px}
+.lb-table th{text-align:left;padding:10px 16px;color:var(--text3);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.lb-table td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text2)}
+.lb-table tr:last-child td{border-bottom:none}
+.lb-name{color:var(--white);font-weight:500;display:flex;align-items:center;gap:8px}
+.lb-rank{color:var(--text3);font-size:11px;min-width:24px}
+.icr-bar{display:flex;align-items:center;gap:10px}
+.icr-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;max-width:100px}
+.icr-fill{height:100%;background:var(--amber);border-radius:2px}
+.icr-val{color:var(--white);min-width:40px}
+.lb-await{color:var(--text3);font-style:italic}
+
+footer{border-top:1px solid var(--border);padding:40px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text3)}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--amber)}
+
+.kw{color:#c792ea}.fn{color:#82aaff}.str{color:#c3e88d}.cm{color:#546e7a;font-style:italic}.num{color:#f78c6c}
+
+@media(max-width:768px){
+  .modes-grid,.wizard-layout,.two-col,.alert-config-area{grid-template-columns:1fr}
+  .alert-channels{grid-template-columns:repeat(2,1fr)}
+  nav{padding:0 20px}
+  .nav-links{display:none}
+  #hero,.container{padding-left:20px;padding-right:20px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">K9<span>AUDIT</span></a>
+  <ul class="nav-links">
+    <li><a href="#modes">Modes</a></li>
+    <li><a href="#integrate">Integrate</a></li>
+    <li><a href="#constraints">Rules</a></li>
+    <li><a href="#alerts">Alerts</a></li>
+    <li><a href="#posthoc">Audit</a></li>
+    <li><a href="https://github.com/liuhaotian2024-prog/K9Audit" target="_blank">GitHub</a></li>
+  </ul>
+  <a href="https://pypi.org/project/k9audit-hook/" class="nav-cta" target="_blank">pip install →</a>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+
+  <!-- ── HEADLINE ── -->
+  <div class="hero-wntt">WE NEED TO TALK.</div>
+  <div class="hero-wntt-sub">
+    Your agent did something.<br>
+    It's not telling you.<br>
+    <em>K9 Audit is.</em>
+  </div>
+
+  <div class="hero-actions" style="margin-top:40px">
+    <a href="#integrate" class="btn-primary">Get started in 5 min →</a>
+    <a href="#posthoc" class="btn-secondary">Audit existing codebase</a>
+    <a href="https://github.com/liuhaotian2024-prog/K9Audit" class="btn-secondary" target="_blank">GitHub</a>
+  </div>
+
+  <!-- ── SPLIT SCREEN: Live Feed + Terminal ── -->
+  <div class="hero-split">
+
+    <!-- LEFT: Live CIEU Event Feed -->
+    <div class="hero-feed">
+      <div class="feed-header">
+        <span class="feed-title">Live CIEU Feed</span>
+        <span class="feed-live">● live</span>
+        <span class="feed-count" id="feed-count">Events: <strong id="event-count">0</strong></span>
+      </div>
+      <div class="feed-body" id="feed-body">
+        <!-- events injected by JS -->
+      </div>
+      <div class="feed-footer">
+        <span class="t-ok">k9log verify-log → chain intact</span>
+        <span class="feed-hash">✓ SHA256 VERIFIED</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: Terminal Output -->
+    <div class="hero-terminal">
+      <div class="terminal-tabs">
+        <button class="t-tab active" onclick="switchTerm('trace',this)">k9log trace --last</button>
+        <button class="t-tab" onclick="switchTerm('causal',this)">k9log causal --last</button>
+      </div>
+
+      <div class="t-panel active" id="term-trace">
+        <div class="terminal-body">
+<span class="t-err">❌ CRITICAL VIOLATION  seq=451</span>
+<span class="t-dim">2026-03-04 16:59:22 UTC</span>
+
+<span class="t-dim">─── X_t  Context ──────────────────</span>
+  agent:   <span class="t-val">Claude Code</span>  <span class="t-dim">(session: abc123)</span>
+  action:  <span class="t-val">WRITE</span>
+
+<span class="t-dim">─── U_t  What happened ────────────</span>
+  target:  <span class="t-val">quant_backtest/config.json</span>
+  content: <span class="t-err">"api.market-data.staging.internal"</span>
+
+<span class="t-dim">─── Y*_t  Intent Contract ─────────</span>
+  rule:    <span class="t-cmd">deny_content</span> → <span class="t-err">["staging.internal"]</span>
+
+<span class="t-dim">─── R_t+1  Assessment ─────────────</span>
+  severity: <span class="t-err">0.90 CRITICAL</span>
+  <span class="t-ok">→ 3 attempts · 41 min apart · all recorded</span>
+        </div>
+      </div>
+
+      <div class="t-panel" id="term-causal">
+        <div class="terminal-body">
+<span class="t-ok">ROOT CAUSE FOUND</span>
+<span class="t-dim">Auto-detected failure at Step #2</span>
+
+<span class="t-dim">Causal Chain Analysis</span>
+<span class="t-val">├── Root Causes</span>
+<span class="t-val">│  └── Step #1 — Write (report.py)</span>
+<span class="t-err">│      ├── Uses "logging" — missing import</span>
+<span class="t-err">│      └── Missing: import logging</span>
+<span class="t-val">└── Full Chain</span>
+<span class="t-dim">  Depth 0 FAIL  Step #2 — Bash</span>
+<span class="t-dim">  Depth 1 OK    Step #1 — Write</span>
+<span class="t-dim">  Depth 2 OK    Step #0 — Write</span>
+
+<span class="t-ok">→ Root cause: &lt;10 seconds</span>
+<span class="t-dim">→ Manual grep: ~20 minutes</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- MODES -->
+<section id="modes" class="sec-pad">
+  <div class="container">
+    <div class="section-label">Two ways to use K9</div>
+    <h2 class="section-title">Live monitoring or post-hoc audit</h2>
+    <p class="section-sub">Hook K9 in before your agent runs, or point it at an existing codebase to audit what already happened.</p>
+    <div class="modes-grid">
+      <div class="mode-card" onclick="document.getElementById('integrate').scrollIntoView({behavior:'smooth'})">
+        <div class="mode-icon">⚡</div>
+        <h3>Live Agent Monitoring</h3>
+        <p>Hook K9 into your agent before it runs. Every action is recorded in real time. Violations are flagged the moment they happen — not after the damage is done.</p>
+        <span class="mode-tag tag-live">Real-time · Zero disruption</span>
+        <div style="margin-top:14px;font-size:12px;color:var(--text3)">Claude Code · Cursor · LangChain · AutoGen · OpenClaw · Any Python</div>
+      </div>
+      <div class="mode-card" onclick="document.getElementById('posthoc').scrollIntoView({behavior:'smooth'})">
+        <div class="mode-icon">🔍</div>
+        <h3>Post-hoc Codebase Audit</h3>
+        <p>Already have a codebase written by AI? Point K9 at it and run a structural audit — detect violations, dead imports, scope breaches without running anything.</p>
+        <span class="mode-tag tag-posthoc">Static analysis · No execution needed</span>
+        <div style="margin-top:14px;font-size:12px;color:var(--text3)">Input: repo path · Output: causal violation report + remediation commands</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATION WIZARD -->
+<section id="integrate" class="sec-pad">
+  <div class="container">
+    <div class="section-label">Integration Wizard</div>
+    <h2 class="section-title">Pick your tool. Get your setup.</h2>
+    <p class="section-sub">Select the agent or framework you're using. The exact commands and config appear instantly — copy and paste.</p>
+
+    <div class="wizard-tabs">
+      <button class="wizard-tab active" onclick="switchTab('claude-code',this)">🤖 Claude Code</button>
+      <button class="wizard-tab" onclick="switchTab('cursor',this)">⚡ Cursor</button>
+      <button class="wizard-tab" onclick="switchTab('langchain',this)">🔗 LangChain</button>
+      <button class="wizard-tab" onclick="switchTab('autogen',this)">🤝 AutoGen</button>
+      <button class="wizard-tab" onclick="switchTab('openclaw',this)">🦞 OpenClaw</button>
+      <button class="wizard-tab" onclick="switchTab('python',this)">🐍 Any Python</button>
+    </div>
+
+    <!-- Claude Code -->
+    <div class="wizard-panel active" id="panel-claude-code">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install K9 Audit</h4>
+            <div class="code-block">pip install k9audit-hook<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>Drop the hook into your project</h4>
+            <p>Zero code changes — K9 hooks into Claude Code's event stream automatically via settings.json.</p>
+            <div class="code-block"><span class="cm">// .claude/settings.json</span>
+{
+  <span class="str">"hooks"</span>: {
+    <span class="str">"PostToolUse"</span>: [{
+      <span class="str">"matcher"</span>: <span class="str">".*"</span>,
+      <span class="str">"hooks"</span>: [{
+        <span class="str">"type"</span>: <span class="str">"command"</span>,
+        <span class="str">"command"</span>: <span class="str">"python -m k9log.hook"</span>
+      }]
+    }]
+  }
+}<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>Add CONSTRAINTS.md to your project</h4>
+            <p>Claude Code reads this before acting. K9 enforces it after. Use the <a href="#constraints" style="color:var(--amber)">Rule Builder</a> to generate it automatically.</p>
+            <div class="code-block"><span class="cm"># CONSTRAINTS.md</span>
+<span class="str">## Rules
+- NEVER write to production configs
+- NEVER use staging.internal URLs
+- Only modify files under ./src/**</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">4</div><div class="step-content">
+            <h4>Run and verify</h4>
+            <div class="code-block">k9log stats          <span class="cm"># see recorded events</span>
+k9log trace --last   <span class="cm"># inspect last deviation</span>
+k9log verify-log     <span class="cm"># confirm chain intact</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">Live output after Claude Code run</div>
+          <div class="preview-body">
+<span class="t-ok">✓ K9 hook active · Claude Code detected</span>
+<span class="t-dim">────────────────────────────</span>
+<span class="t-dim">Events recorded: </span><span class="t-val">22</span>
+<span class="t-dim">Violations:      </span><span class="t-err">3 CRITICAL</span>
+<span class="t-dim">ICR score:       </span><span class="t-val">86.4%</span>
+<span class="t-dim">Chain integrity: </span><span class="t-ok">✓ SHA256 verified</span>
+
+<span class="t-dim">─── Last violation ──────────</span>
+<span class="t-err">CRITICAL  R=0.90</span>
+<span class="t-val">write_file → config.json</span>
+<span class="t-err">contains: staging.internal</span>
+
+<span class="t-cmd">→ k9log trace --last</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cursor -->
+    <div class="wizard-panel" id="panel-cursor">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install</h4>
+            <div class="code-block">pip install k9audit-hook<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>Wrap tool functions with @k9</h4>
+            <div class="code-block"><span class="kw">from</span> k9log.core <span class="kw">import</span> k9
+
+<span class="fn">@k9</span>(
+    deny_content=[<span class="str">"staging.internal"</span>],
+    allowed_paths=[<span class="str">"./src/**"</span>]
+)
+<span class="kw">def</span> <span class="fn">write_file</span>(path: str, content: str):
+    <span class="cm"># existing code unchanged</span>
+    ...<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>K9 reads your .cursorrules as intent contracts</h4>
+            <p>Existing .cursorrules are automatically enforced by K9. No duplication needed.</p>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">Cursor + K9</div>
+          <div class="preview-body">
+<span class="t-ok">✓ @k9 decorator active</span>
+<span class="t-ok">✓ .cursorrules loaded as Y*_t</span>
+<span class="t-dim">────────────────────────────</span>
+<span class="t-dim">Every call records:</span>
+  <span class="t-val">X_t  </span><span class="t-dim">context + session</span>
+  <span class="t-val">U_t  </span><span class="t-dim">function + args</span>
+  <span class="t-val">Y*_t </span><span class="t-dim">from .cursorrules</span>
+  <span class="t-val">Y_t+1</span><span class="t-dim"> return value</span>
+  <span class="t-val">R_t+1</span><span class="t-dim"> deviation score</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LangChain -->
+    <div class="wizard-panel" id="panel-langchain">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install</h4>
+            <div class="code-block">pip install k9audit-hook langchain<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>Add K9CallbackHandler — zero changes to your chain</h4>
+            <div class="code-block"><span class="kw">from</span> k9log.langchain_adapter <span class="kw">import</span> K9CallbackHandler
+
+handler = <span class="fn">K9CallbackHandler</span>()
+
+<span class="cm"># agents, chains, or individual tools</span>
+agent = <span class="fn">initialize_agent</span>(
+    tools, llm,
+    callbacks=[handler]  <span class="cm"># ← only change</span>
+)<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>Every tool call is audited automatically</h4>
+            <p>K9 intercepts on_tool_start and on_tool_end. Violations detected before execution completes.</p>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">LangChain callback</div>
+          <div class="preview-body">
+<span class="t-ok">✓ K9CallbackHandler registered</span>
+<span class="t-dim">────────────────────────────</span>
+<span class="t-dim">on_tool_start → </span><span class="t-val">Y*_t recorded</span>
+<span class="t-dim">on_tool_end   → </span><span class="t-val">R_t+1 computed</span>
+<span class="t-dim">on_tool_error → </span><span class="t-err">deviation flagged</span>
+
+<span class="t-ok">✓ chain logic unchanged</span>
+<span class="t-ok">✓ tool definitions unchanged</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AutoGen -->
+    <div class="wizard-panel" id="panel-autogen">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install</h4>
+            <div class="code-block">pip install k9audit-hook pyautogen<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>Wrap AutoGen tools with @k9</h4>
+            <div class="code-block"><span class="kw">from</span> k9log.core <span class="kw">import</span> k9
+
+<span class="fn">@k9</span>(skill=<span class="str">"code_execution"</span>,
+     allowed_paths=[<span class="str">"./workspace/**"</span>])
+<span class="kw">def</span> <span class="fn">execute_code</span>(code: str, lang=<span class="str">"python"</span>):
+    ...<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>Multi-agent runs fully traced per agent</h4>
+            <p>Each agent gets its own identity in X_t. You can trace exactly which agent triggered a violation in a multi-agent loop.</p>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">AutoGen multi-agent trace</div>
+          <div class="preview-body">
+<span class="t-dim">Agent A → Agent B → Tool</span>
+<span class="t-dim">────────────────────────────</span>
+  <span class="t-val">X_t.agent  </span><span class="t-dim">AssistantAgent_B</span>
+  <span class="t-val">X_t.session</span><span class="t-dim"> multi_run_42</span>
+  <span class="t-val">R_t+1      </span><span class="t-ok">0.95 conformant</span>
+
+<span class="t-dim">Full chain per agent identity</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OpenClaw -->
+    <div class="wizard-panel" id="panel-openclaw">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install K9 as an OpenClaw skill</h4>
+            <div class="code-block">pip install k9audit-hook<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>Add skill to your OpenClaw workspace</h4>
+            <div class="code-block"><span class="cm"># ~/.openclaw/workspace/skills/k9audit/SKILL.md</span>
+<span class="str">## K9 Audit Skill
+Wrap every tool call with @k9.
+Run k9log stats after each session.
+Alert me if R_t+1 > 0.7.</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>Every OpenClaw action is now audited</h4>
+            <div class="code-block"><span class="kw">from</span> k9log.core <span class="kw">import</span> k9
+
+<span class="fn">@k9</span>(skill=<span class="str">"openclaw_action"</span>)
+<span class="kw">def</span> <span class="fn">claw_tool</span>(action: str, params: dict):
+    ...<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">OpenClaw + K9</div>
+          <div class="preview-body">
+<span class="t-ok">✓ K9 skill loaded</span>
+<span class="t-dim">────────────────────────────</span>
+<span class="t-dim">Every Telegram command your</span>
+<span class="t-dim">assistant executes is audited.</span>
+
+<span class="t-val">"Speed without a seatbelt</span>
+<span class="t-val"> is terrifying."</span>
+
+<span class="t-dim">→ K9 is the seatbelt.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Python -->
+    <div class="wizard-panel" id="panel-python">
+      <div class="wizard-layout">
+        <div class="wizard-steps">
+          <div class="wizard-step"><div class="step-num">1</div><div class="step-content">
+            <h4>Install</h4>
+            <div class="code-block">pip install k9audit-hook<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">2</div><div class="step-content">
+            <h4>One decorator on any function</h4>
+            <div class="code-block"><span class="kw">from</span> k9log.core <span class="kw">import</span> k9
+
+<span class="fn">@k9</span>(
+    skill=<span class="str">"my_tool"</span>,
+    deny_content=[<span class="str">"password"</span>, <span class="str">"secret"</span>],
+    allowed_paths=[<span class="str">"./output/**"</span>]
+)
+<span class="kw">def</span> <span class="fn">my_agent_tool</span>(arg1, arg2):
+    <span class="cm"># existing code completely unchanged</span>
+    <span class="kw">return</span> result<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+          <div class="wizard-step"><div class="step-num">3</div><div class="step-content">
+            <h4>Check the ledger anytime</h4>
+            <div class="code-block">k9log stats
+k9log trace --last
+k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+          </div></div>
+        </div>
+        <div class="wizard-preview">
+          <div class="preview-header">Universal Python</div>
+          <div class="preview-body">
+<span class="t-ok">✓ Python 3.11+ · any agent</span>
+<span class="t-dim">────────────────────────────</span>
+<span class="t-dim">Ledger:</span>
+<span class="t-val">~/.k9log/logs/k9log.cieu.jsonl</span>
+
+<span class="t-dim">~500 bytes per record</span>
+<span class="t-dim">10k records ≈ 5MB</span>
+<span class="t-ok">✓ Fully local · zero upload</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONSTRAINT BUILDER -->
+<section id="constraints" class="sec-pad">
+  <div class="container">
+    <div class="section-label">Rule Builder</div>
+    <h2 class="section-title">Define your intent contracts</h2>
+    <p class="section-sub">Fill in what your agent is and isn't allowed to do. The @k9 decorator code and CONSTRAINTS.md are generated automatically.</p>
+    <div class="two-col">
+      <div class="builder-form">
+        <div class="form-group">
+          <label class="form-label">Skill / Function Name</label>
+          <input class="form-input" id="skillName" type="text" placeholder="e.g. write_config" oninput="updateOutput()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Forbidden content patterns</label>
+          <span class="form-sublabel">Press Enter after each pattern</span>
+          <div class="tag-input-wrap" id="denyWrap" onclick="document.getElementById('denyInput').focus()">
+            <input class="tag-real-input" id="denyInput" placeholder="e.g. staging.internal" onkeydown="addTag(event,'deny')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Allowed file paths (glob)</label>
+          <span class="form-sublabel">Press Enter after each path</span>
+          <div class="tag-input-wrap" id="allowWrap" onclick="document.getElementById('allowInput').focus()">
+            <input class="tag-real-input" id="allowInput" placeholder="e.g. ./src/**" onkeydown="addTag(event,'allow')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Forbidden paths (glob)</label>
+          <span class="form-sublabel">Press Enter after each path</span>
+          <div class="tag-input-wrap" id="denyPathWrap" onclick="document.getElementById('denyPathInput').focus()">
+            <input class="tag-real-input" id="denyPathInput" placeholder="e.g. ./prod/**" onkeydown="addTag(event,'denyPath')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Action class</label>
+          <select class="form-input" id="actionClass" onchange="updateOutput()">
+            <option value="ANY">ANY (all actions)</option>
+            <option value="WRITE">WRITE</option>
+            <option value="READ">READ</option>
+            <option value="EXEC">EXEC</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alert threshold (R_t+1 score)</label>
+          <input class="form-input" id="threshold" type="number" min="0" max="1" step="0.1" value="0.7" oninput="updateOutput()">
+        </div>
+      </div>
+      <div class="builder-output">
+        <div class="output-tabs">
+          <button class="output-tab active" onclick="switchOutputTab('decorator',this)">@k9 Decorator</button>
+          <button class="output-tab" onclick="switchOutputTab('constraints',this)">CONSTRAINTS.md</button>
+          <button class="output-tab" onclick="switchOutputTab('intent',this)">intent.json</button>
+        </div>
+        <div class="output-content active" id="out-decorator">
+          <div class="output-block">
+            <div class="output-block-header"><span>k9_decorator.py</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-decorator',this)">copy</button></div>
+            <pre id="code-decorator"></pre>
+          </div>
+        </div>
+        <div class="output-content" id="out-constraints">
+          <div class="output-block">
+            <div class="output-block-header"><span>CONSTRAINTS.md</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-constraints',this)">copy</button></div>
+            <pre id="code-constraints"></pre>
+          </div>
+        </div>
+        <div class="output-content" id="out-intent">
+          <div class="output-block">
+            <div class="output-block-header"><span>~/.k9log/intents/[skill].json</span><button class="copy-btn" style="position:static;margin-left:auto" onclick="copyPre('code-intent',this)">copy</button></div>
+            <pre id="code-intent"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ALERT CONFIGURATOR -->
+<section id="alerts" class="sec-pad">
+  <div class="container">
+    <div class="section-label">Alert Configurator</div>
+    <h2 class="section-title">Get notified the moment something goes wrong</h2>
+    <p class="section-sub">Choose how K9 alerts you when a violation is detected. Configure once, copy the config file.</p>
+    <div class="alert-channels">
+      <div class="channel-card selected" onclick="selectChannel('telegram',this)">
+        <div class="channel-icon">✈️</div>
+        <div class="channel-name">Telegram</div>
+        <div class="channel-desc">Instant push to any chat</div>
+      </div>
+      <div class="channel-card" onclick="selectChannel('slack',this)">
+        <div class="channel-icon">💬</div>
+        <div class="channel-name">Slack</div>
+        <div class="channel-desc">Post to any channel</div>
+      </div>
+      <div class="channel-card" onclick="selectChannel('discord',this)">
+        <div class="channel-icon">🎮</div>
+        <div class="channel-name">Discord</div>
+        <div class="channel-desc">Webhook to any server</div>
+      </div>
+      <div class="channel-card" onclick="selectChannel('web',this)">
+        <div class="channel-icon">🖥</div>
+        <div class="channel-name">Web Dashboard</div>
+        <div class="channel-desc">Live browser feed</div>
+      </div>
+    </div>
+    <div class="alert-config-area">
+      <div>
+        <div class="config-panel active" id="cfg-telegram">
+          <div class="alert-form">
+            <div class="form-group">
+              <label class="form-label">Telegram Bot Token</label>
+              <span class="form-sublabel">Get from @BotFather on Telegram</span>
+              <input class="form-input" id="tg-token" type="text" placeholder="7123456789:AAF..." oninput="updateAlertConfig()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Chat ID</label>
+              <span class="form-sublabel">Get from @userinfobot on Telegram</span>
+              <input class="form-input" id="tg-chat" type="text" placeholder="123456789" oninput="updateAlertConfig()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Min severity to alert</label>
+              <select class="form-input" id="tg-severity" onchange="updateAlertConfig()">
+                <option value="0.5">0.5 — Medium and above</option>
+                <option value="0.7" selected>0.7 — High and above</option>
+                <option value="0.9">0.9 — Critical only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="config-panel" id="cfg-slack">
+          <div class="alert-form">
+            <div class="form-group">
+              <label class="form-label">Slack Webhook URL</label>
+              <input class="form-input" id="sl-webhook" type="text" placeholder="https://hooks.slack.com/services/..." oninput="updateAlertConfig()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Channel</label>
+              <input class="form-input" id="sl-channel" type="text" placeholder="#k9-alerts" oninput="updateAlertConfig()">
+            </div>
+          </div>
+        </div>
+        <div class="config-panel" id="cfg-discord">
+          <div class="alert-form">
+            <div class="form-group">
+              <label class="form-label">Discord Webhook URL</label>
+              <span class="form-sublabel">Server Settings → Integrations → Webhooks</span>
+              <input class="form-input" id="dc-webhook" type="text" placeholder="https://discord.com/api/webhooks/..." oninput="updateAlertConfig()">
+            </div>
+          </div>
+        </div>
+        <div class="config-panel" id="cfg-web">
+          <div class="alert-form">
+            <div class="form-group">
+              <label class="form-label">Local Dashboard Port</label>
+              <input class="form-input" id="web-port" type="text" value="8765" oninput="updateAlertConfig()">
+            </div>
+            <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard runs locally on your machine. Open it in any browser — no cloud, no upload.</p>
+            <div class="form-group">
+              <label class="form-label">Launch command</label>
+              <div class="code-block">k9log dashboard --port 8765<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+            </div>
+            <div class="web-dashboard-preview">
+              <div class="dash-header">
+                <span>K9 Dashboard · localhost:8765</span>
+                <span class="dash-live">live</span>
+              </div>
+              <div class="dash-events">
+                <div class="dash-event critical">
+                  <span class="event-score critical">0.90</span>
+                  <span class="event-detail">write_config → staging.internal detected</span>
+                  <span class="event-time">16:59:22</span>
+                </div>
+                <div class="dash-event warning">
+                  <span class="event-score warning">0.72</span>
+                  <span class="event-detail">read_file → path outside allowed_paths</span>
+                  <span class="event-time">16:58:01</span>
+                </div>
+                <div class="dash-event ok">
+                  <span class="event-score ok">0.95</span>
+                  <span class="event-detail">execute_code → all constraints met</span>
+                  <span class="event-time">16:57:44</span>
+                </div>
+                <div class="dash-event ok">
+                  <span class="event-score ok">1.00</span>
+                  <span class="event-detail">write_file → conformant</span>
+                  <span class="event-time">16:57:10</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="output-block" id="alert-output-block">
+          <div class="output-block-header">
+            <span>~/.k9log/config/alerting.json</span>
+            <button class="copy-btn" style="position:static;margin-left:auto" onclick="copyAlertConfig()">copy</button>
+          </div>
+          <pre id="alert-config-output" style="padding:20px;font-size:12px;line-height:1.8;color:var(--text)"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- POST-HOC AUDIT -->
+<section id="posthoc" class="sec-pad">
+  <div class="container">
+    <div class="section-label">Post-hoc Codebase Audit</div>
+    <h2 class="section-title">Already have AI-written code? Audit it now.</h2>
+    <p class="section-sub">Point K9 at any existing codebase — even one written entirely by AI without K9 running. The static analyzer detects violations without executing anything.</p>
+    <div class="two-col">
+      <div class="audit-form">
+        <div class="form-group">
+          <label class="form-label">Repository path or GitHub URL</label>
+          <input class="form-input" id="audit-path" type="text" placeholder="./my-project  or  github.com/user/repo" oninput="updateAuditCmd()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">What to check</label>
+          <div class="audit-options">
+            <label class="audit-option"><input type="checkbox" id="chk-imports" checked onchange="updateAuditCmd()"> Dead imports</label>
+            <label class="audit-option"><input type="checkbox" id="chk-scope" checked onchange="updateAuditCmd()"> Scope violations</label>
+            <label class="audit-option"><input type="checkbox" id="chk-constraints" checked onchange="updateAuditCmd()"> CONSTRAINTS.md</label>
+            <label class="audit-option"><input type="checkbox" id="chk-deps" onchange="updateAuditCmd()"> Dependency chain</label>
+            <label class="audit-option"><input type="checkbox" id="chk-secrets" checked onchange="updateAuditCmd()"> Secret patterns</label>
+            <label class="audit-option"><input type="checkbox" id="chk-staging" checked onchange="updateAuditCmd()"> Staging URLs in prod</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Output format</label>
+          <select class="form-input" id="audit-format" onchange="updateAuditCmd()">
+            <option value="terminal">Terminal (default)</option>
+            <option value="html">HTML report</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Generated command</label>
+          <div class="code-block" id="audit-cmd-block">k9log audit ./my-project --checks imports,scope,constraints,secrets,staging<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+        </div>
+      </div>
+      <div class="audit-output">
+        <div class="audit-output-header">
+          <span class="audit-output-title">Sample output</span>
+          <span style="font-size:11px;color:var(--text3)">k9log audit ./project</span>
+        </div>
+        <div class="audit-output-body">
+          <div class="finding high">
+            <div class="finding-top"><span class="finding-title">Staging URL in production config</span><span class="finding-badge badge-high">HIGH</span></div>
+            <div class="finding-detail">config/production.json:14 — value contains "staging.internal". Written by agent on 2026-03-04, never corrected.</div>
+            <div class="finding-cmd">→ k9log trace --file config/production.json</div>
+          </div>
+          <div class="finding high">
+            <div class="finding-top"><span class="finding-title">Missing import used 3 steps later</span><span class="finding-badge badge-high">HIGH</span></div>
+            <div class="finding-detail">src/report.py:7 — uses logging.info() but import logging is missing. Will fail at runtime.</div>
+            <div class="finding-cmd">→ k9log causal --file src/report.py</div>
+          </div>
+          <div class="finding med">
+            <div class="finding-top"><span class="finding-title">File written outside allowed_paths</span><span class="finding-badge badge-med">MEDIUM</span></div>
+            <div class="finding-detail">scripts/deploy.sh was written outside declared scope ./src/**. Not declared in intent contracts.</div>
+            <div class="finding-cmd">→ k9log trace --file scripts/deploy.sh</div>
+          </div>
+          <div class="finding low">
+            <div class="finding-top"><span class="finding-title">Unused dependency in requirements.txt</span><span class="finding-badge badge-low">LOW</span></div>
+            <div class="finding-detail">boto3 listed in requirements.txt but never imported. Possibly added speculatively by the agent.</div>
+            <div class="finding-cmd">→ k9log audit --check deps --verbose</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEADERBOARD -->
+<section id="leaderboard" class="sec-pad">
+  <div class="container">
+    <div class="section-label">K9 Arena</div>
+    <h2 class="section-title" style="font-size:28px">How do agents rank?</h2>
+    <p class="section-sub" style="margin-bottom:24px">Same task. Same constraints. Ranked by Intent Conformance Rate. <strong style="color:var(--amber)">1 of 6 runs complete — <a href="/cdn-cgi/l/email-protection#2a46435f424b455e434b44181a181e6a4d474b43460449454715595f48404f495e1761130a6b584f444b0a795f4847435959434544" style="color:var(--amber)">help fill this.</a></strong></p>
+    <table class="lb-table">
+      <thead><tr><th>#</th><th>Agent</th><th>ICR (Task 001)</th><th>ICR (Task 002)</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lb-rank">L</td>
+          <td><span class="lb-name">🤖 Claude Code <span style="color:var(--text3);font-size:11px">claude-sonnet-4</span></span></td>
+          <td><div class="icr-bar"><div class="icr-track"><div class="icr-fill" style="width:4.5%"></div></div><span class="icr-val">4.5%</span></div></td>
+          <td><div class="icr-bar"><div class="icr-track"><div class="icr-fill" style="width:62%"></div></div><span class="icr-val">62%</span></div></td>
+          <td style="color:var(--teal);font-size:11px">✓ complete</td>
+        </tr>
+        <tr><td class="lb-rank">—</td><td><span class="lb-name">⚡ Cursor</span></td><td class="lb-await">awaiting run</td><td class="lb-await">awaiting run</td><td style="color:var(--text3);font-size:11px">scheduling</td></tr>
+        <tr><td class="lb-rank">—</td><td><span class="lb-name">🌊 Windsurf</span></td><td class="lb-await">awaiting run</td><td class="lb-await">awaiting run</td><td style="color:var(--text3);font-size:11px">scheduling</td></tr>
+        <tr><td class="lb-rank">—</td><td><span class="lb-name">🤖 Devin</span></td><td class="lb-await">awaiting run</td><td class="lb-await">awaiting run</td><td style="color:var(--text3);font-size:11px">scheduling</td></tr>
+        <tr><td class="lb-rank">—</td><td><span class="lb-name">🐙 GitHub Copilot Agent</span></td><td class="lb-await">awaiting run</td><td class="lb-await">awaiting run</td><td style="color:var(--text3);font-size:11px">scheduling</td></tr>
+        <tr><td class="lb-rank">—</td><td><span class="lb-name">🙌 OpenHands + GPT-4o</span></td><td class="lb-await">awaiting run</td><td class="lb-await">awaiting run</td><td style="color:var(--text3);font-size:11px">scheduling</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div>K9 Audit · AGPL-3.0 · U.S. Provisional Patent 63/981,777</div>
+  <div style="display:flex;gap:24px">
+    <a href="https://pypi.org/project/k9audit-hook/" target="_blank">PyPI</a>
+    <a href="https://github.com/liuhaotian2024-prog/K9Audit" target="_blank">GitHub</a>
+    <a href="/cdn-cgi/l/email-protection#91fdf8e4f9f0fee5f8f0ffa3a1a3a5d1f6fcf0f8fdbff2fefc">Contact</a>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+const tags={deny:[],allow:[],denyPath:[]};
+function addTag(e,type){if(e.key!=='Enter')return;e.preventDefault();const ids={deny:'denyInput',allow:'allowInput',denyPath:'denyPathInput'};const input=document.getElementById(ids[type]);const val=input.value.trim();if(!val)return;tags[type].push(val);input.value='';renderTags(type);updateOutput()}
+function renderTags(type){const wrapIds={deny:'denyWrap',allow:'allowWrap',denyPath:'denyPathWrap'};const inputIds={deny:'denyInput',allow:'allowInput',denyPath:'denyPathInput'};const wrap=document.getElementById(wrapIds[type]);const input=document.getElementById(inputIds[type]);wrap.innerHTML='';tags[type].forEach((t,i)=>{const pill=document.createElement('div');pill.className='tag-pill';pill.innerHTML=`${t}<span class="remove" onclick="removeTag('${type}',${i})">×</span>`;wrap.appendChild(pill)});wrap.appendChild(input)}
+function removeTag(type,i){tags[type].splice(i,1);renderTags(type);updateOutput()}
+
+function updateOutput(){
+  const skill=document.getElementById('skillName').value||'my_tool';
+  const deny=tags.deny,allow=tags.allow,denyPath=tags.denyPath;
+  const action=document.getElementById('actionClass').value;
+  const threshold=document.getElementById('threshold').value;
+  let args=`\n    skill="${skill}"`;
+  if(deny.length) args+=`,\n    deny_content=${JSON.stringify(deny)}`;
+  if(allow.length) args+=`,\n    allowed_paths=${JSON.stringify(allow)}`;
+  if(denyPath.length) args+=`,\n    deny_paths=${JSON.stringify(denyPath)}`;
+  if(action!=='ANY') args+=`,\n    action_class="${action}"`;
+  args+=`,\n    alert_threshold=${threshold}`;
+  document.getElementById('code-decorator').textContent=`from k9log.core import k9\n\n@k9(${args}\n)\ndef ${skill}(*args, **kwargs):\n    # your existing function unchanged\n    ...`;
+  let md=`# CONSTRAINTS.md\n\n## Agent Rules\n\n`;
+  if(deny.length) md+=`### Forbidden content\n${deny.map(d=>`- NEVER write or use: \`${d}\``).join('\n')}\n\n`;
+  if(allow.length) md+=`### Allowed paths\n${allow.map(a=>`- Only modify files under: \`${a}\``).join('\n')}\n\n`;
+  if(denyPath.length) md+=`### Forbidden paths\n${denyPath.map(d=>`- NEVER write to: \`${d}\``).join('\n')}\n\n`;
+  if(action!=='ANY') md+=`### Action class\n- Only perform ${action} operations\n\n`;
+  md+=`## Violations\nAll violations must be recorded with severity >= ${threshold}.`;
+  document.getElementById('code-constraints').textContent=md;
+  const intent={skill,constraints:{}};
+  if(deny.length) intent.constraints.deny_content=deny;
+  if(allow.length) intent.constraints.allowed_paths=allow;
+  if(denyPath.length) intent.constraints.deny_paths=denyPath;
+  if(action!=='ANY') intent.constraints.action_class=action;
+  intent.constraints.alert_threshold=parseFloat(threshold);
+  document.getElementById('code-intent').textContent=JSON.stringify(intent,null,2);
+}
+
+function switchTab(id,btn){document.querySelectorAll('.wizard-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.wizard-tab').forEach(b=>b.classList.remove('active'));document.getElementById('panel-'+id).classList.add('active');btn.classList.add('active')}
+function switchOutputTab(id,btn){document.querySelectorAll('.output-tab').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.output-content').forEach(c=>c.classList.remove('active'));btn.classList.add('active');document.getElementById('out-'+id).classList.add('active')}
+
+function writeClipboard(text,onSuccess){try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(onSuccess).catch(()=>fallbackCopy(text,onSuccess))}else{fallbackCopy(text,onSuccess)}}catch(e){fallbackCopy(text,onSuccess)}}
+function fallbackCopy(text,onSuccess){const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');if(onSuccess)onSuccess()}catch(e){}document.body.removeChild(ta)}
+function showCopied(btn){const orig=btn.textContent;btn.textContent='✓ copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied')},1600)}
+function copyCode(btn){const block=btn.parentElement;const clone=block.cloneNode(true);clone.querySelectorAll('.copy-btn').forEach(b=>b.remove());const text=clone.innerText.trim();writeClipboard(text,()=>showCopied(btn))}
+function copyPre(id,btn){const text=document.getElementById(id).textContent.trim();writeClipboard(text,()=>{if(btn)showCopied(btn)})}
+
+let activeChannel='telegram';
+function selectChannel(ch,card){document.querySelectorAll('.channel-card').forEach(c=>c.classList.remove('selected'));document.querySelectorAll('.config-panel').forEach(p=>p.classList.remove('active'));card.classList.add('selected');document.getElementById('cfg-'+ch).classList.add('active');activeChannel=ch;updateAlertConfig()}
+
+function updateAlertConfig(){
+  let config={enabled:true,channels:{}};
+  if(activeChannel==='telegram'){
+    const token=document.getElementById('tg-token')?.value||'YOUR_BOT_TOKEN';
+    const chat=document.getElementById('tg-chat')?.value||'YOUR_CHAT_ID';
+    const sev=parseFloat(document.getElementById('tg-severity')?.value||'0.7');
+    config.channels.telegram={enabled:true,bot_token:token,chat_id:chat,min_severity:sev};
+  }else if(activeChannel==='slack'){
+    const webhook=document.getElementById('sl-webhook')?.value||'YOUR_WEBHOOK_URL';
+    const ch=document.getElementById('sl-channel')?.value||'#k9-alerts';
+    config.channels.slack={enabled:true,webhook_url:webhook,channel:ch};
+  }else if(activeChannel==='discord'){
+    const webhook=document.getElementById('dc-webhook')?.value||'YOUR_WEBHOOK_URL';
+    config.channels.discord={enabled:true,webhook_url:webhook};
+  }else if(activeChannel==='web'){
+    const port=parseInt(document.getElementById('web-port')?.value||'8765');
+    config.channels.web_dashboard={enabled:true,port,host:'localhost'};
+  }
+  document.getElementById('alert-config-output').textContent=JSON.stringify(config,null,2);
+}
+
+function copyAlertConfig(){const text=document.getElementById('alert-config-output').textContent.trim();const btn=document.querySelector('#alert-output-block .copy-btn');writeClipboard(text,()=>showCopied(btn))}
+
+function updateAuditCmd(){
+  const path=document.getElementById('audit-path').value||'./my-project';
+  const checks=[];
+  if(document.getElementById('chk-imports').checked) checks.push('imports');
+  if(document.getElementById('chk-scope').checked) checks.push('scope');
+  if(document.getElementById('chk-constraints').checked) checks.push('constraints');
+  if(document.getElementById('chk-deps').checked) checks.push('deps');
+  if(document.getElementById('chk-secrets').checked) checks.push('secrets');
+  if(document.getElementById('chk-staging').checked) checks.push('staging');
+  const fmt=document.getElementById('audit-format').value;
+  let cmd=`k9log audit ${path} --checks ${checks.join(',')}`;
+  if(fmt==='html') cmd+=' --output report.html';
+  if(fmt==='json') cmd+=' -  if(fmt==='json') cmd+=' --output report.json';
+  document.getElementById('audit-cmd-block').innerHTML=cmd+'<button class="copy-btn" onclick="copyCode(this)">copy</button>';
+}
+
+// ── INIT ──
+updateOutput();updateAlertConfig();updateAuditCmd();
+
+// ── LIVE FEED ANIMATION ──
+const feedEvents=[
+  {type:'ok',     score:'1.00',detail:'write_file → ./src/utils.py — conformant',      time:'16:57:10'},
+  {type:'ok',     score:'0.95',detail:'read_file → CONSTRAINTS.md — within scope',      time:'16:57:44'},
+  {type:'warning',score:'0.72',detail:'read_file → path outside allowed_paths',          time:'16:58:01'},
+  {type:'ok',     score:'0.98',detail:'execute_bash → pytest ./tests — conformant',      time:'16:58:33'},
+  {type:'critical',score:'0.90',detail:'write_file → staging.internal URL detected',     time:'16:59:22'},
+  {type:'critical',score:'0.90',detail:'write_config → attempt #2 · same violation',     time:'17:00:03'},
+  {type:'ok',     score:'1.00',detail:'read_file → README.md — within scope',            time:'17:00:44'},
+  {type:'critical',score:'0.90',detail:'write_config → attempt #3 · chain recorded',     time:'17:01:15'},
+];
+let feedIdx=0,eventTotal=0;
+function addFeedEvent(){
+  const e=feedEvents[feedIdx%feedEvents.length];feedIdx++;eventTotal++;
+  const body=document.getElementById('feed-body');if(!body)return;
+  const div=document.createElement('div');
+  div.className='feed-event '+e.type;
+  div.innerHTML='<span class="feed-score '+e.type+'">'+e.score+'</span><span class="feed-detail">'+e.detail+'</span><span class="feed-time">'+e.time+'</span>';
+  body.insertBefore(div,body.firstChild);
+  if(body.children.length>8)body.removeChild(body.lastChild);
+  const cnt=document.getElementById('event-count');if(cnt)cnt.textContent=eventTotal;
+}
+for(let i=0;i<5;i++)addFeedEvent();
+setInterval(addFeedEvent,2200);
+
+// ── TERMINAL TABS ──
+function switchTerm(id,btn){
+  document.querySelectorAll('.t-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.t-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('term-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
