@@ -270,6 +270,33 @@ footer a:hover{color:var(--amber)}
         <span class="t-ok">k9log verify-log → chain intact</span>
         <span class="feed-hash">✓ SHA256 VERIFIED</span>
       </div>
+<script>
+const demoEvents=[
+  {sev:"critical",score:"0.92",skill:"write_config",msg:"denied: staging.internal in content",time:"16:59:22"},
+  {sev:"ok",score:"0.00",skill:"read_file",msg:"read ./src/main.py — ok",time:"16:59:24"},
+  {sev:"warning",score:"0.71",skill:"bash_exec",msg:"path outside allowed scope",time:"16:59:27"},
+  {sev:"ok",score:"0.00",skill:"query_database",msg:"SELECT users — ok",time:"16:59:30"},
+  {sev:"critical",score:"0.90",skill:"calculate_discount",msg:"denied: result exceeds max 0.5",time:"16:59:33"},
+  {sev:"ok",score:"0.00",skill:"export_report",msg:"write ./output/report.html — ok",time:"16:59:36"},
+  {sev:"warning",score:"0.65",skill:"place_order",msg:"amount 9999 exceeds limit 1000",time:"16:59:39"},
+  {sev:"ok",score:"0.00",skill:"read_file",msg:"read ./config/prod.json — ok",time:"16:59:42"},
+];
+let feedIdx=0,feedCount=0;
+function addFeedEvent(){
+  const e=demoEvents[feedIdx%demoEvents.length];
+  feedIdx++;feedCount++;
+  const body=document.getElementById("feed-body");
+  const div=document.createElement("div");
+  div.className=`feed-event ${e.sev}`;
+  div.innerHTML=`<span class="feed-score ${e.sev}">${e.score}</span><span class="feed-detail"><strong>${e.skill}</strong> — ${e.msg}</span><span class="feed-time">${e.time}</span>`;
+  body.appendChild(div);
+  if(body.children.length>8) body.removeChild(body.firstChild);
+  body.scrollTop=body.scrollHeight;
+  document.getElementById("event-count").textContent=feedCount;
+}
+// Start after 800ms, then every 2.5s
+setTimeout(()=>{addFeedEvent();setInterval(addFeedEvent,2500);},800);
+</script>
     </div>
 
     <!-- RIGHT: Terminal Output -->
