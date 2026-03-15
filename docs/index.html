@@ -788,17 +788,17 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
         <div class="config-panel" id="cfg-web">
           <div class="alert-form">
             <div class="form-group">
-              <label class="form-label">Local Dashboard Port</label>
+              <label class="form-label">Live Dashboard (Railway)</label>
               <input class="form-input" id="web-port" type="text" value="8765" oninput="updateAlertConfig()">
             </div>
-            <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard runs locally on your machine. Open it in any browser. No data leaves unless you configure it to.</p>
+            <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard is hosted on Railway. Open it in any browser — no local setup needed.</p>
             <div class="form-group">
               <label class="form-label">Launch command</label>
-              <div class="code-block">k9log dashboard --port 8765<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <div class="code-block">https://k9audit-production.up.railway.app/dashboard<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
             </div>
             <div class="web-dashboard-preview">
               <div class="dash-header">
-                <span>K9 Dashboard · localhost:8765</span>
+                <span>K9 Dashboard · k9audit-production.up.railway.app</span>
                 <span class="dash-live">live</span>
               </div>
               <div class="dash-events">
