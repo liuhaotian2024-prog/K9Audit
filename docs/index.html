@@ -708,6 +708,14 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
     <h2 class="section-title">Define your intent contracts</h2>
     <p class="section-sub">Fill in what your agent is and isn't allowed to do. The @k9 decorator code and CONSTRAINTS.md are generated automatically.</p>
     <div class="two-col">
+            <div style="margin-bottom:16px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase">Quick presets</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="loadPreset('filewriter')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono)">Safe file writer</button>
+          <button onclick="loadPreset('deploy')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono)">Deployment guard</button>
+          <button onclick="loadPreset('repoagent')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono)">Repo-scoped agent</button>
+        </div>
+      </div>
       <div class="builder-form">
         <div class="form-group">
           <label class="form-label">Skill / Function Name</label>
@@ -788,6 +796,41 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
       <div class="channel-card selected" onclick="selectChannel('telegram',this)">
         <div class="channel-icon">✈️</div>
         <div class="channel-name">Telegram</div>
+    <!-- Alert preview -->
+    <div style="margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;color:var(--text2);font-family:var(--mono)">Alert payload preview</span>
+        <button onclick="previewAlert()" style="margin-left:auto;background:var(--amber);color:var(--bg);border:none;padding:4px 14px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:700">Send test violation →</button>
+      </div>
+      <pre id="alert-preview" style="padding:14px 16px;font-size:11px;color:var(--text2);font-family:var(--mono);white-space:pre-wrap;line-height:1.6">[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)
+
+─── X_t  Context ───────────────────────
+  agent:   Claude Code
+  action:  WRITE
+  session: abc123
+
+─── U_t  What happened ─────────────────
+  skill:   write_config
+  target:  quant_backtest/config.json
+  content: {"endpoint": "https://api.staging.internal/..."}
+
+─── R_t+1  Assessment ──────────────────
+  passed:  false
+  finding: content contains forbidden pattern "staging.internal"
+
+→  k9log trace --step 42</pre>
+    </div>
+    <script>
+    function previewAlert(){
+      const el=document.getElementById('alert-preview');
+      el.style.color='var(--amber)';
+      setTimeout(()=>el.style.color='var(--text2)',1200);
+      // Flash to simulate "sent"
+      el.textContent='✓ Test alert sent — check your configured channel';
+      setTimeout(()=>{el.style.color='var(--text2)';el.textContent=`[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)\n\n─── X_t  Context ───────────────────────\n  agent:   Claude Code\n  action:  WRITE\n  session: abc123\n\n─── U_t  What happened ─────────────────\n  skill:   write_config\n  target:  quant_backtest/config.json\n  content: {"endpoint": "https://api.staging.internal/..."}\n\n─── R_t+1  Assessment ──────────────────\n  passed:  false\n  finding: content contains forbidden pattern "staging.internal"\n\n→  k9log trace --step 42`;},2000);
+    }
+    </script>
+
         <div class="channel-desc">Instant push to any chat</div>
       </div>
       <div class="channel-card" onclick="selectChannel('slack',this)">
@@ -978,6 +1021,7 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
 <section id="leaderboard" class="sec-pad">
   <div class="container">
     <div class="section-label">K9 Arena</div>
+    <div style="display:inline-block;background:#451a03;color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.08em;margin-bottom:8px;font-family:var(--mono)">COMMUNITY ALPHA — data filling in</div>
     <h2 class="section-title" style="font-size:28px">How do agents rank?</h2>
     <p class="section-sub" style="margin-bottom:24px">Same task. Same constraints. Ranked by Intent Conformance Rate. <strong style="color:var(--amber)">1 of 6 runs complete — <a href="/cdn-cgi/l/email-protection#2a46435f424b455e434b44181a181e6a4d474b43460449454715595f48404f495e1761130a6b584f444b0a795f4847435959434544" style="color:var(--amber)">help fill this.</a></strong></p>
     <table class="lb-table">
@@ -1128,6 +1172,23 @@ function switchTerm(id,btn){
   document.querySelectorAll('.t-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('term-'+id).classList.add('active');
   btn.classList.add('active');
+}
+</script>
+<script>
+const presets={
+  filewriter:{skill:'write_file',deny:['staging.internal','.env','api_key','secret'],allow:['./src/**','./output/**'],denyPath:[],action:'WRITE',threshold:'0.7'},
+  deploy:{skill:'deploy_service',deny:['staging','sandbox','localhost','127.0.0.1'],allow:['./deploy/**'],denyPath:['./node_modules/**'],action:'EXECUTE',threshold:'0.8'},
+  repoagent:{skill:'edit_code',deny:['.env','secret','password','token'],allow:['./src/**','./tests/**','./docs/**'],denyPath:['./dist/**','./build/**'],action:'WRITE',threshold:'0.6'}
+};
+function loadPreset(name){
+  const p=presets[name];
+  if(!p) return;
+  document.getElementById('skillName').value=p.skill;
+  document.getElementById('actionClass').value=p.action;
+  document.getElementById('threshold').value=p.threshold;
+  tags.deny=[...p.deny]; tags.allow=[...p.allow]; tags.denyPath=[...p.denyPath];
+  ['deny','allow','denyPath'].forEach(renderTags);
+  updateOutput();
 }
 </script>
 </body>
