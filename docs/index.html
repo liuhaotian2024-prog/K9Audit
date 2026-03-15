@@ -247,7 +247,12 @@ footer a:hover{color:var(--amber)}
     <em>K9 Audit is.</em>
   </div>
 
-  <div class="hero-actions" style="margin-top:40px">
+  <div style="margin-top:16px;margin-bottom:8px;font-size:11px;color:var(--text3);font-family:var(--mono);display:flex;gap:20px;flex-wrap:wrap">
+    <span>📦 pip install k9audit-hook</span>
+    <span>🔒 local by default · no cloud required</span>
+    <span>⚡ &lt;1ms overhead per call</span>
+  </div>
+  <div class="hero-actions" style="margin-top:16px">
     <a href="#integrate" class="btn-primary">Get started in 5 min →</a>
     <a href="#posthoc" class="btn-secondary">Audit existing codebase</a>
     <a href="https://github.com/liuhaotian2024-prog/K9Audit" class="btn-secondary" target="_blank">GitHub</a>
@@ -263,6 +268,35 @@ footer a:hover{color:var(--amber)}
       <span>✓ Zero tokens consumed</span>
       <span>✓ Zero disruption to agent</span>
       <span>✓ Available on PyPI</span>
+    </div>
+  </div>
+
+  <!-- ── 60-second proof ── -->
+  <div style="max-width:900px;margin:32px auto 0;padding:0 24px">
+    <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;font-family:var(--mono)">What K9 catches that nothing else does</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:rgba(255,77,109,.05);border:1px solid rgba(255,77,109,.2);border-radius:8px;padding:16px">
+        <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:.08em;margin-bottom:10px">WITHOUT K9</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono);line-height:2">
+          <div>✓ Tests pass</div>
+          <div>✓ No errors thrown</div>
+          <div>✓ Code looks correct</div>
+          <div style="color:var(--red);margin-top:8px">✗ staging URL silently in prod</div>
+          <div style="color:var(--red)">✗ discovered 2 days later</div>
+          <div style="color:var(--red)">✗ 3 hours to trace root cause</div>
+        </div>
+      </div>
+      <div style="background:rgba(0,201,167,.05);border:1px solid rgba(0,201,167,.2);border-radius:8px;padding:16px">
+        <div style="font-size:10px;color:var(--teal);font-weight:700;letter-spacing:.08em;margin-bottom:10px">WITH K9</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono);line-height:2">
+          <div>✓ Tests pass</div>
+          <div>✓ No errors thrown</div>
+          <div>✓ Code looks correct</div>
+          <div style="color:var(--teal);margin-top:8px">✓ K9 flags it at write time</div>
+          <div style="color:var(--teal)">✓ Alert in &lt;100ms</div>
+          <div style="color:var(--teal)">✓ Root cause in 10 seconds</div>
+        </div>
+      </div>
     </div>
   </div>
   <!-- ── K9 is not... ── -->
@@ -492,6 +526,13 @@ write_config('https://api.staging.internal/v2')
           <div class="preview-header">Live output after Claude Code run</div>
           <div class="preview-body">
 <span class="t-ok">✓ K9 hook active · Claude Code detected</span>
+<span class="t-dim">── Success checklist ────────</span>
+<span class="t-ok">✓ pip install completed</span>
+<span class="t-ok">✓ settings.json has hook</span>
+<span class="t-ok">✓ first event recorded</span>
+<span class="t-ok">✓ violation flagged</span>
+<span class="t-ok">✓ k9log trace shows root cause</span>
+<span class="t-dim">────────────────────────────</span>
 <span class="t-dim">────────────────────────────</span>
 <span class="t-dim">Events recorded: </span><span class="t-val">22</span>
 <span class="t-dim">Violations:      </span><span class="t-err">3 CRITICAL</span>
