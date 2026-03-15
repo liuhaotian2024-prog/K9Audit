@@ -627,7 +627,7 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
 
 <span class="t-dim">~500 bytes per record</span>
 <span class="t-dim">10k records ≈ 5MB</span>
-<span class="t-ok">✓ Fully local · zero upload</span>
+<span class="t-ok">✓ Local by default · your data, your choice</span>
           </div>
         </div>
       </div>
@@ -791,7 +791,7 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
               <label class="form-label">Local Dashboard Port</label>
               <input class="form-input" id="web-port" type="text" value="8765" oninput="updateAlertConfig()">
             </div>
-            <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard runs locally on your machine. Open it in any browser — no cloud, no upload.</p>
+            <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard runs locally on your machine. Open it in any browser. No data leaves unless you configure it to.</p>
             <div class="form-group">
               <label class="form-label">Launch command</label>
               <div class="code-block">k9log dashboard --port 8765<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
@@ -1066,3 +1066,4 @@ function switchTerm(id,btn){
 </script>
 </body>
 </html>
+
