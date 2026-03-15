@@ -1309,6 +1309,76 @@ def retry():
     if result.failed_batches > 0:
         console.print(f"[red]{result.failed_batches} batches still failing[/red]")
 
+
+
+@main.command("audit")
+@click.argument("path", default=".", required=False)
+@click.option("--checks", default="staging,secrets,imports,scope,constraints",
+              help="Comma-separated checks: staging,secrets,imports,scope,constraints")
+@click.option("--output", default=None, help="Output file (.html or .json)")
+@click.option("--verbose", is_flag=True, default=False, help="Include LOW severity findings")
+def audit_cmd(path, checks, output, verbose):
+    """Static audit of an AI-written codebase — no execution required.
+
+    \b
+    Examples:
+      k9log audit ./my-project
+      k9log audit ./my-project --checks staging,secrets
+      k9log audit ./my-project --output report.html
+      k9log audit ./my-project --verbose
+    """
+    from k9log.auditor import run_audit, DEFAULT_CHECKS
+    from rich.panel import Panel
+    from pathlib import Path
+
+    check_list = [c.strip() for c in checks.split(",") if c.strip()]
+
+    console.print(Panel.fit(
+        f"[bold cyan]K9 Post-hoc Codebase Audit[/bold cyan]\n"
+        f"[dim]{Path(path).resolve()}[/dim]",
+        border_style="cyan"
+    ))
+    console.print(f"[dim]Checks: {', '.join(check_list)}[/dim]\n")
+
+    try:
+        findings = run_audit(path, checks=check_list, output=output, verbose=verbose)
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/red]")
+        return
+
+    if not findings:
+        console.print("[green]✓ No findings — codebase looks clean[/green]")
+        if output:
+            console.print(f"[dim]Report saved: {output}[/dim]")
+        return
+
+    # Count by severity
+    from collections import Counter
+    sev_counts = Counter(f.severity for f in findings)
+
+    console.print(
+        f"  [red]{sev_counts.get('HIGH', 0)} HIGH[/red]  "
+        f"[yellow]{sev_counts.get('MEDIUM', 0)} MEDIUM[/yellow]  "
+        f"[cyan]{sev_counts.get('LOW', 0)} LOW[/cyan]\n"
+    )
+
+    # Display findings
+    for f in findings:
+        sev_color = "red" if f.severity == "HIGH" else "yellow" if f.severity == "MEDIUM" else "cyan"
+        loc = f.file + (f":{f.line}" if f.line else "")
+        console.print(f"  [{sev_color}][{f.severity}][/{sev_color}] [bold]{f.title}[/bold]")
+        console.print(f"       [dim]{f.detail}[/dim]")
+        console.print(f"       [dim]{loc}[/dim]")
+        if f.command:
+            console.print(f"       [yellow]→ {f.command}[/yellow]")
+        console.print()
+
+    if output:
+        console.print(f"[green]Report saved: {output}[/green]")
+    else:
+        console.print(f"[dim]Tip: add --output report.html for a full HTML report[/dim]")
+
+
 if __name__ == '__main__':
     main()
 
