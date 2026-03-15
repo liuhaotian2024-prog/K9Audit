@@ -74,3 +74,6 @@ k9_evidence_report*.html
 server/data/
 server/~$*
 logger.py
+
+hook.py
+logger.py
