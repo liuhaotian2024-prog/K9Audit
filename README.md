@@ -1,4 +1,4 @@
-﻿# 🐕‍🦺 K9 Audit
+# 🐕‍🦺 K9 Audit
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
@@ -500,7 +500,7 @@ On Windows the path is `C:\Users\<username>\.k9log\logs\k9log.cieu.jsonl`.
 
 **Multi-machine and team aggregation**
 
-Each machine maintains its own local Ledger. In Phase 1 there is no built-in central server. To aggregate records from multiple engineers or CI runs, collect the JSONL files and merge them in Python:
+Each machine maintains its own local Ledger. By default local. Optional encrypted sync layer available in Phase 2. To aggregate records from multiple engineers or CI runs, collect the JSONL files and merge them in Python:
 
 ```python
 import json

@@ -52,6 +52,15 @@ DEFAULT_CONFIG = {
         "end": "07:00",
         "timezone_offset_hours": 8
     },
+    "sync": {
+        "enabled": False,
+        "endpoint": "",
+        "api_key": "",
+        "batch_size": 100,
+        "on_deviation_only": False,
+        "retry_on_failure": True,
+        "cursor_path": ""
+    },
     "fuse": {
         "enabled": False,
         "min_severity": 0.85,
@@ -83,7 +92,7 @@ def _load_config():
             with open(CONFIG_PATH, 'r', encoding='utf-8-sig') as f:
                 user_cfg = json.load(f)
             cfg = {**DEFAULT_CONFIG, **user_cfg}
-            for key in ['rules', 'dedup', 'aggregation', 'dnd', 'channels', 'fuse']:
+            for key in ['rules', 'dedup', 'aggregation', 'dnd', 'channels', 'fuse', 'sync']:
                 if key in user_cfg and isinstance(DEFAULT_CONFIG.get(key), dict):
                     cfg[key] = {**DEFAULT_CONFIG[key], **user_cfg[key]}
             return cfg

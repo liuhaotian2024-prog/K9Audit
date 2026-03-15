@@ -1193,6 +1193,122 @@ def skills_diagnose(skill_hash, action, agent_type):
         console.print(f"  [yellow]注意：{d['caution']}[/yellow]")
     console.print()
 
+
+
+# ── Ledger Sync Commands ────────────────────────────────────────────────────
+
+@main.group()
+def sync():
+    """Optional ledger sync to a remote endpoint (half-local mode)"""
+    pass
+
+
+@sync.command()
+def push():
+    """Push unsynced CIEU records to configured endpoint"""
+    from k9log.ledger_sync import push_pending, SyncResult
+    cfg_check = __import__("k9log.ledger_sync", fromlist=["_load_sync_config"])._load_sync_config()
+    if not cfg_check.get("enabled", False):
+        console.print("[yellow]Sync is disabled. Enable it first:[/yellow]")
+        console.print("  k9log sync enable --endpoint https://your-server/api/ingest")
+        return
+    console.print("[cyan]Pushing pending records...[/cyan]")
+    result = push_pending()
+    if result.skipped_reason:
+        console.print(f"[yellow]Skipped: {result.skipped_reason}[/yellow]")
+        return
+    if result.pushed_records > 0:
+        console.print(f"[green]Pushed {result.pushed_records} records in {result.pushed_batches} batches[/green]")
+        console.print(f"  Last synced seq: {result.last_synced_seq}")
+    else:
+        console.print("[green]No new records to sync[/green]")
+    if result.failed_batches > 0:
+        console.print(f"[red]{result.failed_batches} batches failed[/red]")
+        if result.queued_to_retry > 0:
+            console.print(f"  {result.queued_to_retry} records queued to retry (run: k9log sync retry)")
+
+
+@sync.command()
+def status():
+    """Show sync cursor and pending record count"""
+    from k9log.ledger_sync import sync_status
+    s = sync_status()
+    console.print("\n[cyan]Ledger Sync Status[/cyan]\n")
+    if s["enabled"]:
+        console.print(f"[green]Status: ENABLED[/green]")
+        console.print(f"  Endpoint:       {s['endpoint']}")
+        console.print(f"  Mode:           {'deviations only' if s['on_deviation_only'] else 'all records'}")
+        console.print(f"  Batch size:     {s['batch_size']}")
+    else:
+        console.print("[yellow]Status: DISABLED[/yellow]")
+        console.print("  Run: k9log sync enable --endpoint <url>")
+    console.print(f"\n  Last synced seq: {s['last_synced_seq']}")
+    console.print(f"  Pending records: {s['pending_records']}")
+    if s["retry_queue_size"] > 0:
+        console.print(f"  [yellow]Retry queue:     {s['retry_queue_size']} records[/yellow]")
+    console.print(f"\n  Cursor file:    {s['cursor_path']}")
+
+
+@sync.command()
+@click.option("--endpoint", required=True, help="Remote ingest endpoint URL")
+@click.option("--api-key", default="", help="API key (sent as Bearer token)")
+@click.option("--deviation-only", is_flag=True, help="Only sync violation records")
+@click.option("--batch-size", default=100, type=int, help="Records per HTTP request")
+def enable(endpoint, api_key, deviation_only, batch_size):
+    """Enable sync and configure endpoint"""
+    from k9log.alerting import _load_config, _save_config
+    cfg = _load_config()
+    cfg["sync"] = {
+        "enabled":            True,
+        "endpoint":           endpoint,
+        "api_key":            api_key,
+        "batch_size":         batch_size,
+        "on_deviation_only":  deviation_only,
+        "retry_on_failure":   True,
+        "cursor_path":        "",
+    }
+    _save_config(cfg)
+    console.print(f"[green]Sync enabled → {endpoint}[/green]")
+    mode = "deviations only" if deviation_only else "all records"
+    console.print(f"  Mode: {mode} | Batch: {batch_size}")
+    console.print("  Run: k9log sync push   to push now")
+
+
+@sync.command()
+def disable():
+    """Disable sync (keeps cursor and retry queue intact)"""
+    from k9log.alerting import _load_config, _save_config
+    cfg = _load_config()
+    if "sync" not in cfg:
+        cfg["sync"] = {}
+    cfg["sync"]["enabled"] = False
+    _save_config(cfg)
+    console.print("[yellow]Sync disabled[/yellow]")
+
+
+@sync.command()
+def reset():
+    """Reset sync cursor — next push will re-send all records"""
+    from k9log.ledger_sync import reset_cursor
+    reset_cursor()
+    console.print("[yellow]Cursor reset. Next push will re-send all records.[/yellow]")
+
+
+@sync.command()
+def retry():
+    """Flush the retry queue (re-attempt failed batches)"""
+    from k9log.ledger_sync import flush_retry
+    from k9log.ledger_sync import _RETRY_PATH
+    if not _RETRY_PATH.exists():
+        console.print("[green]Retry queue is empty[/green]")
+        return
+    console.print("[cyan]Flushing retry queue...[/cyan]")
+    result = flush_retry()
+    if result.pushed_records > 0:
+        console.print(f"[green]Re-sent {result.pushed_records} records[/green]")
+    if result.failed_batches > 0:
+        console.print(f"[red]{result.failed_batches} batches still failing[/red]")
+
 if __name__ == '__main__':
     main()
 
