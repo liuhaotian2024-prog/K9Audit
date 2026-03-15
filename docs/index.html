@@ -471,6 +471,22 @@ setTimeout(()=>{addFeedEvent();setInterval(addFeedEvent,2500);},800);
 k9log trace --last   <span class="cm"># inspect last deviation</span>
 k9log verify-log     <span class="cm"># confirm chain intact</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
           </div></div>
+                  <div class="wizard-step"><div class="step-num" style="background:var(--teal);color:var(--bg)">✓</div><div class="step-content">
+            <h4>Trigger your first violation (30 seconds)</h4>
+            <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Run this in your project — K9 will catch it immediately:</p>
+            <div class="code-block">python -c "
+from k9log.core import k9
+
+@k9(deny_content=['staging.internal'])
+def write_config(content):
+    return content
+
+write_config('https://api.staging.internal/v2')
+"<button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+            <p style="font-size:12px;color:var(--text2);margin-top:8px">Then run:</p>
+            <div class="code-block">k9log trace --last   <span class="cm"># see the violation with full causal chain</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+            <p style="font-size:11px;color:var(--teal);margin-top:8px">✓ If you see "VIOLATION — deny_content" you're fully set up.</p>
+          </div></div>
         </div>
         <div class="wizard-preview">
           <div class="preview-header">Live output after Claude Code run</div>
@@ -1018,8 +1034,15 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
 </section>
 
 <!-- LEADERBOARD -->
-<section id="leaderboard" class="sec-pad">
-  <div class="container">
+  <section style="padding:32px 24px;max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:16px;cursor:pointer" onclick="toggleArena()">
+      <div class="section-label" style="margin:0">K9 Arena</div>
+      <div style="display:inline-block;background:#451a03;color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.08em;font-family:var(--mono)">COMMUNITY ALPHA — data filling in</div>
+      <span id="arena-toggle" style="margin-left:auto;color:var(--text3);font-size:11px;font-family:var(--mono)">[ show ↓ ]</span>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:8px;font-family:var(--mono)">Real-world K9 audit runs submitted by the community. Accepting submissions.</p>
+    <div id="arena-body" style="display:none;margin-top:20px">
+      <div class="container">
     <div class="section-label">K9 Arena</div>
     <div style="display:inline-block;background:#451a03;color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.08em;margin-bottom:8px;font-family:var(--mono)">COMMUNITY ALPHA — data filling in</div>
     <h2 class="section-title" style="font-size:28px">How do agents rank?</h2>
@@ -1042,7 +1065,16 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
       </tbody>
     </table>
   </div>
-</section>
+    </div>
+    <script>
+    function toggleArena(){
+      const b=document.getElementById('arena-body');
+      const t=document.getElementById('arena-toggle');
+      if(b.style.display==='none'){b.style.display='block';t.textContent='[ hide ↑ ]';}
+      else{b.style.display='none';t.textContent='[ show ↓ ]';}
+    }
+    </script>
+  </section>
 
 <footer>
   <div>K9 Audit · AGPL-3.0 · U.S. Provisional Patent 63/981,777</div>
