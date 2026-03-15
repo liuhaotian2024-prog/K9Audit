@@ -154,9 +154,24 @@ Other observability tools work like expensive cameras. K9 Audit works like an au
 | Core technology | Causal AI, deterministic tracking | Generative AI, probabilistic evaluation |
 | Data structure | Hash-chained causal evidence ledger | Flat timeline / trace spans |
 | Troubleshooting | Commands, not hours | Hours of manual log reading |
-| Data location | Fully local, never uploaded | Cloud SaaS or partial upload |
+| Data location | Local by default · your data, your choice | Cloud SaaS — data leaves your machine |
 | Tamper-proofness | SHA256 cryptographic chain | Depends entirely on server trust |
 | Audit cost | Zero tokens, zero per-event billing | Per-event / per-seat API billing |
+
+---
+
+## Deployment Modes
+
+K9 Audit is **local-first, not local-only**. The core audit engine always runs on your machine. Choose the deployment model that fits your needs:
+
+| Mode | Who it's for | Data location |
+|------|--------------|---------------|
+| **Local** (default) | Individual devs, sensitive projects | Your disk only — no network calls |
+| **Encrypted sync** (Phase 2) | Teams wanting shared dashboards | Encrypted before leaving your machine, key is yours |
+| **Self-hosted** (Phase 2) | Compliance-driven orgs | Your own infrastructure |
+| **Enterprise on-premise** | Financial, medical, government | Air-gapped if needed |
+
+K9 will never train on your audit data. Ever.
 
 ---
 
@@ -669,7 +684,13 @@ On Windows, `~` resolves to `C:\Users\<your-username>`, so the full path is `C:\
 
 **Does any data leave my machine?**
 
-No. The Ledger is written entirely to local disk. K9 Audit makes no network calls unless you explicitly configure an alert channel (Telegram, Slack, Discord, or webhook). Alert payloads contain only the CIEU record fields — no source code, no file contents beyond what you pass as function parameters.
+By default, no. The Ledger is written entirely to local disk. K9 Audit makes no network calls unless you explicitly configure an alert channel (Telegram, Slack, Discord, or webhook). Alert payloads contain only the CIEU record fields — no source code, no file contents beyond what you pass as function parameters.
+
+K9 Audit is **local-first, not local-only**. Optional sync and shared dashboard features are on the roadmap for Phase 2 — these will be strictly opt-in, encrypted, and user-controlled. K9 will never use your audit data to train models.
+
+**Will K9 ever train on my audit data?**
+
+No. Your audit ledger belongs to you. K9 Audit has no telemetry and no connection to any remote server unless you configure one.
 
 **What are the AGPL-3.0 implications for commercial use?**
 
