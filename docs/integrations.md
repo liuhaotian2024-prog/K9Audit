@@ -4,6 +4,22 @@ K9 Audit works with any agent framework. Pick your setup below.
 
 ---
 
+## Deployment Modes
+
+K9 Audit is local-first, not local-only. Choose the deployment model that fits your needs:
+
+| Mode | Who it's for | Data location |
+|------|--------------|---------------|
+| **Local** (default) | Individual devs, sensitive projects | Your disk only — no network calls |
+| **Encrypted sync** (Phase 2) | Teams wanting shared dashboards | Encrypted before leaving your machine, key is yours |
+| **Self-hosted** (Phase 2) | Compliance-driven orgs | Your own Docker / Kubernetes cluster |
+
+The audit ledger is always yours. K9 will never train on your data.
+
+For Phase 2 deployment options, watch the [roadmap](roadmap_phase2.md) or contact liuhaotian2024@gmail.com.
+
+---
+
 ## Contents
 
 - [Claude Code](#claude-code)
@@ -270,3 +286,4 @@ k9log trace --step 451         # root cause of a specific event
 k9log verify-log               # cryptographic proof nothing was tampered
 k9log report --output out.html # shareable HTML evidence report
 ```
+

@@ -1,4 +1,4 @@
-﻿# K9Audit — Product Vision & Capability Summary
+# K9Audit — Product Vision & Capability Summary
 
 > 内部参考文档 · 2026-03-08
 
@@ -6,9 +6,22 @@
 
 ## 一句话定位
 
-**本地、零 token、非 LLM、可验证的 AI agent 因果证据基础设施。**
+**数据主权优先、零 token、非 LLM、可验证的 AI agent 因果证据基础设施。**
 
 不是在观察 agent，而是在给 agent 行为立一份带 hash chain 的可追责因果账本。
+
+> 本地优先，不等于只能本地。核心审计引擎永远在用户机器上运行。
+> 数据去哪里、怎么同步，由用户决定——不是我们。
+
+## 部署模式
+
+| 模式 | 适用场景 | 数据位置 |
+|------|----------|----------|
+| 本地（默认） | 个人开发者、高合规项目 | 仅在你的磁盘上 |
+| 加密同步（Phase 2） | 团队共享 dashboard | 加密后同步，密钥归用户 |
+| 自托管（Phase 2） | 金融、医疗、政府 | 你自己的基础设施 |
+
+K9 永远不会用你的审计数据训练模型。
 
 ---
 
@@ -127,3 +140,4 @@ CLI 里已隐藏，调用时提示 not included in Phase 1 public release：
 它不是"又一个 trace dashboard"。
 它是把过去很难追溯、很难解释、很难定责的 agent 问题，
 变成几分钟内可 trace、可 verify、可出 report 的问题的基础设施。
+
