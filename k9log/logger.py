@@ -1,4 +1,4 @@
-﻿# K9log - Engineering-grade Causal Audit for AI Agent Ecosystems
+# K9log - Engineering-grade Causal Audit for AI Agent Ecosystems
 # Copyright (C) 2026 Haotian Liu
 # AGPL-3.0 - see LICENSE for details
 """
@@ -399,5 +399,6 @@ def get_logger():
             if _logger is None:  # double-checked locking
                 _logger = CIEULogger()
     return _logger
+
 
 
