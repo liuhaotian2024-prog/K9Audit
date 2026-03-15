@@ -122,6 +122,74 @@ def _process_py_file_write(payload):
         sys.stderr.write(f'[k9log] K9Contract parse failed: {e}\n')
 
 
+
+def _broadcast_root_cause(is_error: bool, payload: dict):
+    """
+    If execution failed, find the cross-step root cause and write to stderr.
+    Claude Code reads stderr and jumps back to fix the actual root cause —
+    not the symptom step where the crash happened.
+
+    Only fires when:
+      - is_error=True (tool execution actually failed)
+      - CausalChainAnalyzer finds a root cause at a DIFFERENT step than the crash
+        (same-step errors are self-evident — Claude Code can see them directly)
+    """
+    if not is_error:
+        return
+    try:
+        from k9log.causal_analyzer import CausalChainAnalyzer
+        analyzer = CausalChainAnalyzer()
+        if not analyzer.records:
+            return
+
+        # Find the most recent failure step
+        incident_step = None
+        for idx in range(len(analyzer.records) - 1, -1, -1):
+            rec = analyzer.records[idx]
+            if not rec.get('R_t+1', {}).get('passed', True):
+                incident_step = idx
+                break
+        if incident_step is None:
+            return
+
+        analyzer.build_causal_dag()
+        result = analyzer.find_root_causes(incident_step)
+        if not result or not result.get('root_causes'):
+            return
+
+        root_causes = result['root_causes']
+        top = root_causes[0]
+
+        # Only broadcast if root cause is at a DIFFERENT step (cross-step)
+        # Same-step errors are self-evident — no need to broadcast
+        if top.get('step') == incident_step:
+            return
+
+        # Build the broadcast message for Claude Code
+        tool_name = payload.get('tool_name', 'unknown')
+        lines = [
+            f"\n[K9 Root Cause] Execution failed at step #{incident_step} ({tool_name})",
+            f"  but the ROOT CAUSE is at step #{top['step']} — {top['skill']}",
+            f"  Confidence: {int(top['confidence'] * 100)}%",
+            f"  Reason: {top['reasoning']}",
+        ]
+        if top.get('keyword'):
+            lines.append(f"  Missing: import {top['keyword']}")
+        if top.get('execution_error'):
+            lines.append(f"  Error trace: {top['execution_error'][:120]}")
+        if top.get('file_path'):
+            lines.append(f"  File: {top['file_path']}")
+        if len(root_causes) > 1:
+            lines.append(f"  Other candidates: " +
+                ", ".join(f"step#{r['step']}" for r in root_causes[1:3]))
+        lines.append(f"  → Fix step #{top['step']} first, then re-run.")
+        lines.append(f"  → Full trace: k9log causal --last\n")
+
+        sys.stderr.write("\n".join(lines) + "\n")
+
+    except Exception:
+        pass  # causal broadcast must never affect hook execution
+
 def main():
     t0 = time.time()
     try:
