@@ -102,8 +102,6 @@ def _process_py_file_write(payload):
             return
         # Get file path from tool input
         tool_input = payload.get("tool_input", {})
-        ut = last.get("U_t", {})
-        skill = ut.get("skill", payload.get("tool_name", "unknown"))
         file_path = (
             tool_input.get('file_path') or
             tool_input.get('path') or ''
