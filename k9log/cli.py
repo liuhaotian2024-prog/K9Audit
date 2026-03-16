@@ -317,7 +317,12 @@ def causal(step, last, export):
 def counterfactual(policy):
     """Run counterfactual replay with alternative policy"""
     import json
-    from k9log.counterfactual import replay_counterfactual
+    try:
+        from k9log.counterfactual import replay_counterfactual
+    except ImportError:
+        console.print('[yellow]Counterfactual replay is available in the K9 Enterprise plan.[/yellow]')
+        console.print('[dim]Contact liuhaotian2024@gmail.com for access.[/dim]')
+        return
     log_file = Path.home() / '.k9log' / 'logs' / 'k9log.cieu.jsonl'
     if not log_file.exists():
         console.print('[yellow]No logs found[/yellow]')
@@ -672,7 +677,12 @@ def status():
 @fuse.command()
 def disarm():
     """Clear fuse state (allow agent to resume)"""
-    from k9log.fuse import disarm as _disarm, load_state
+    try:
+        from k9log.fuse import disarm as _disarm, load_state
+    except ImportError:
+        console.print('[yellow]Fuse / circuit breaker is available in the K9 Enterprise plan.[/yellow]')
+        console.print('[dim]Contact liuhaotian2024@gmail.com for access.[/dim]')
+        return
     state = load_state()
     if not state.get('active'):
         console.print('[yellow]FUSE is not currently active.[/yellow]')
@@ -718,7 +728,12 @@ def load(path, sig):
 @policy.command()
 def pin():
     """Output current policy hash (for reproducibility)"""
-    from k9log.policy_pack import get_active_policy, policy_hash
+    try:
+        from k9log.policy_pack import get_active_policy, policy_hash
+    except ImportError:
+        console.print('[yellow]Policy pack is available in the K9 Enterprise plan.[/yellow]')
+        console.print('[dim]Contact liuhaotian2024@gmail.com for access.[/dim]')
+        return
     pol = get_active_policy()
     if pol is None:
         console.print('[yellow]No policy loaded. Hash: (none)[/yellow]')
@@ -878,7 +893,12 @@ def grants_import(source):
 @click.option("--output", default=".", help="Output directory")
 def grants_export(grant_id, output):
     """Export a grant file for sharing with other teams"""
-    from k9log.federated import export_grant
+    try:
+        from k9log.federated import export_grant
+    except ImportError:
+        console.print('[yellow]Federated grants is available in the K9 Enterprise plan.[/yellow]')
+        console.print('[dim]Contact liuhaotian2024@gmail.com for access.[/dim]')
+        return
     export_grant(grant_id, output)
 
 @grants.command("list")
@@ -892,7 +912,12 @@ def grants_list():
 @click.argument("grant_path")
 def grants_verify(grant_path):
     """Verify a grant file against local CIEU log"""
-    from k9log.federated import verify_grant
+    try:
+        from k9log.federated import verify_grant
+    except ImportError:
+        console.print('[yellow]Federated grants is available in the K9 Enterprise plan.[/yellow]')
+        console.print('[dim]Contact liuhaotian2024@gmail.com for access.[/dim]')
+        return
     verify_grant(grant_path)
 
 @grants.command("approve")

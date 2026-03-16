@@ -894,6 +894,30 @@ The CIEU architecture is covered by U.S. Provisional Patent Application No. 63/9
 Users of K9log under AGPL-3.0 receive patent rights per AGPL-3.0 Section 11.
 For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md](./PATENTS.md).
 
+## Roadmap
+
+K9 Audit is built in phases. The core audit infrastructure is open source and free forever.
+
+The following capabilities are planned for the **Enterprise plan** (Phase 2):
+
+| Feature | What it does |
+|---------|-------------|
+| **Counterfactual replay** | Replay any session with a different policy. "If we had blocked step #3, would the incident have happened?" |
+| **Constitutional gate** | LLM-based semantic review that catches violations your rules did not anticipate. |
+| **Policy pack** | Versioned, signed policy bundles deployable across a fleet of agents. |
+| **Federated grants** | Cross-organization trust: export and verify signed permission grants between teams. |
+| **Fuse / circuit breaker** | Automatic agent suspension after N violations within a time window. |
+| **Decision engine** | Probabilistic risk scoring per action combining constraint results and violation history. |
+| **Taint analysis** | Track how user-controlled data propagates through agent actions to sensitive sinks. |
+| **Metalearning** | Learn from violation history and auto-suggest tighter constraints. |
+| **Full causal graph report** | Visual evidence timeline and compliance export (PDF/JSON) for regulatory submissions. |
+| **Ledger sync** | Encrypted incremental sync to a central endpoint for team-wide audit trails. |
+
+**Interested in the Enterprise plan?**
+Contact [liuhaotian2024@gmail.com](mailto:liuhaotian2024@gmail.com) or open a [GitHub Issue](https://github.com/liuhaotian2024-prog/K9Audit/issues).
+
+---
+
 ## License
 
 AGPL-3.0. See [LICENSE](./LICENSE).
