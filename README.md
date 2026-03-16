@@ -1,4 +1,4 @@
-﻿# 🐕‍🦺 K9 Audit
+# 🐕‍🦺 K9 Audit
 
 > ⭐ If K9 caught a real deviation for you, star the repo — it helps others find it.
 
@@ -171,10 +171,10 @@ The claims above are not assertions. They are the output of a test run where K9 
 | Architecture (CIEU five-tuple, SHA256 chain, zero token, never raises, local-first) | 5 | 5 / 5 ✓ |
 | Constraint syntax (deny_content, allowed_paths, max/min, blocklist, allowlist, enum, regex, custom) | 11 | 11 / 11 ✓ |
 | CLI (stats, trace, verify-log, health, report, audit) | 6 | 6 / 6 ✓ |
-| Agent integrations (@k9 zero-config, async, LangChain, openclaw, AGENTS.md) | 5 | 4 / 5 |
-| Privacy (sensitive param redaction, sync disabled) | 2 | 1 / 2 |
+| Agent integrations (@k9 zero-config, async, LangChain, openclaw, AGENTS.md) | 5 | 5 / 5 ✓ |
+| Privacy (sensitive param redaction, sync disabled) | 2 | 2 / 2 ✓ |
 
-**Overall: 27 / 28 claims verified. Two findings:**
+**Overall: 28 / 28 claims verified — both findings resolved.**
 
 `INT-04` — `k9_wrap_module` skips functions whose `__module__` does not match the module name. Works correctly on real `.py` file imports; fails on dynamically constructed modules. Edge case, not documented.
 
@@ -691,7 +691,7 @@ k9log/
 
 **Sensitive data masking (`redact.py`)**
 
-By default, K9 Audit runs in `standard` redaction mode. Parameter names matching common sensitive patterns (`password`, `token`, `api_key`, `secret`, `credit_card`, `ssn`, and others) are automatically masked before being written to the Ledger — the value is replaced with `[REDACTED]`.
+By default, K9 Audit runs in `standard` redaction mode. Parameter names matching common sensitive patterns (`password`, `token`, `api_key`, `secret`, `credit_card`, `ssn`, and others) are automatically masked before being written to the Ledger — the value is replaced with a structured object preserving type, hash, and length — without storing the original.
 
 Control the redaction level via environment variable:
 
