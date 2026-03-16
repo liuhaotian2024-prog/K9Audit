@@ -155,8 +155,6 @@ def main():
         sys.stderr.write(f"  ACTION:    Recorded in tamper-proof ledger\n")
         sys.stderr.write(f"             → k9log trace --last\n\n")
 
-        # 机器格式已省略，人话输出已足够
-        )
 
     sys.exit(0)
 

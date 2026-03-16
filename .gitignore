@@ -19,7 +19,6 @@ k9log/metalearning.py
 k9log/skill_source.py
 k9log/wizard.py
 k9log/governance/constitutional_gate.py
-k9log/governance/grants.py
 k9log/governance/verdict.py
 
 # ── Internal tooling ────────────────────────────────────────

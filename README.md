@@ -1,4 +1,4 @@
-# 🐕‍🦺 K9 Audit
+﻿# 🐕‍🦺 K9 Audit
 
 > ⭐ If K9 caught a real deviation for you, star the repo — it helps others find it.
 
@@ -541,7 +541,11 @@ k9log verify-ystar             # verify intent contract coverage across all skil
 k9log report --output out.html # generate an interactive causal graph report
 k9log health                   # system health check: ledger + integrity + coverage
 k9log alerts status            # show alerting channel status
-```
+k9log audit ./my-project       # static analysis: staging URLs, secrets, missing imports
+k9log audit ./my-project --checks staging,secrets --output report.html
+k9log sync push                # push unsynced records to configured remote endpoint
+k9log sync status              # show sync cursor position and pending record count
+````
 
 **`k9log health`** shows a skill coverage table. Skills marked `UNCOVERED` are being recorded but have no constraints — violations in those skills will be logged but not flagged. To fix, add a `@k9(...)` decorator to the function, or create `~/.k9log/config/<skill_name>.json` with your constraints. Skills marked `PARTIAL` have constraints on some calls but not all — check for code paths that bypass the decorator.
 
@@ -643,7 +647,9 @@ k9log/
 ├── langchain_adapter.py ← LangChain callback handler
 ├── openclaw.py          ← module-level batch wrapping (k9_wrap_module)
 ├── agents_md_parser.py  ← AGENTS.md / CLAUDE.md rule parser
-└── governance/          ← action class registry (READ/WRITE/DELETE/EXECUTE/…)
+├── auditor.py           ← static codebase audit: staging URLs, secrets, missing imports
+├── ledger_sync.py       ← incremental ledger push to remote endpoint (opt-in)
+└── governance/          ← action class registry, grant data model, constitutional types
 ```
 
 **Sensitive data masking (`redact.py`)**
@@ -716,9 +722,73 @@ The core five-tuple fields (`X_t`, `U_t`, `Y_star_t`, `Y_t+1`, `R_t+1`) are stab
 
 Bring a traceability problem that has been genuinely hard to debug. Solve it with K9 Audit. Show us what changes when troubleshooting shifts from reading text logs to querying a causal graph.
 
-We are looking for proof that K9 can resolve deep-chain agent deviations that would otherwise take hours to untangle. The best submissions become part of the **Solved Hard Cases** gallery.
+The best submissions become part of the **Solved Hard Cases** gallery — a public record of what became possible.
 
-→ [See the challenge](./challenge/README.md)
+---
+
+### Solved Cases (2)
+
+**[Case #001 — The Rebuild Loop](./challenge/examples/case_001_rebuild_loop.md)**
+An agent spent 70 minutes attempting to delete and rebuild a module it had no write authorisation to touch. Every operation after step #2 was out of scope. No files were modified. No error was raised. The developer had no idea it was happening.
+
+| | |
+|---|---|
+| **Session window** | 70 minutes (20:53 – 22:03 UTC) |
+| **Operations recorded** | 22 |
+| **Operations out of scope** | 21 (95%) |
+| **Deletion attempts** | 8 — identical U_t, 41 minutes apart |
+| **Root cause located** | `k9log trace --step 2` → 1 command, under 1 second |
+| **Hash chain** | Intact — verified |
+
+---
+
+**[Case #002 — Read-Then-Write](./challenge/examples/case_002_read_then_write.md)**
+An agent read `CONSTRAINTS.md` — then attempted to write the file that document declared off-limits, 10 seconds later. Three times in project A, once in project B. A filesystem diff shows nothing happened. The CIEU hash chain shows exactly what the agent saw before it acted.
+
+| | |
+|---|---|
+| **Session window** | 26 minutes across 2 projects |
+| **Critical interval** | 10 seconds: CONSTRAINTS.md read → first violation attempt |
+| **Blocked write attempts** | 4 |
+| **Key finding** | Agent queried its own grants at 02:15:24 — visible only in CIEU record |
+| **Hash chain** | Intact — verified |
+
+---
+
+### Submit your own hard case
+
+Three entry points — pick the one that fits your situation:
+
+**Path A — You use Claude Code**
+
+Drop `.claude/settings.json` at your project root. K9 records every tool call automatically. Reproduce the problem, then:
+```bash
+k9log health
+k9log causal --last
+k9log report --output my_case.html
+```
+
+**Path B — You have a Python agent**
+```python
+from k9log import k9, set_agent_identity
+set_agent_identity(agent_name='MyAgent')
+
+@k9(deny_content=["prod"], allowed_paths=["./safe/**"])
+def the_function_that_misbehaved(path: str, content: str) -> bool:
+    ...  # unchanged
+```
+
+Run the agent, then `k9log causal --last`.
+
+**Path C — You have existing logs from a past incident**
+
+K9 can ingest any structured JSON event log and reconstruct a CIEU ledger for post-mortem analysis. See [challenge/README.md](./challenge/README.md) for the ingestion pattern.
+
+---
+
+**→ [Full submission guide and template](./challenge/README.md)**
+
+To submit: open a GitHub Issue with the label `hard-case` and paste the template. One case per submission.
 
 ---
 

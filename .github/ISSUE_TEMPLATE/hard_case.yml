@@ -1,0 +1,95 @@
+﻿---
+name: "🐕 Hard Case Submission"
+about: "Submit a real AI agent traceability problem solved with K9 Audit"
+title: "[Hard Case] "
+labels: hard-case
+assignees: ""
+---
+
+<!--
+  Fill in every section. The goal is a finding someone else can independently
+  reproduce from the CIEU log you attach.
+
+  Before submitting:
+    k9log verify-log
+    k9log report --output my_case.html
+-->
+
+## 1. Case title
+
+One sentence. What was the problem?
+
+> Examples:
+> - A multi-step agent that completed successfully but violated its declared scope
+> - A CI/CD failure where responsibility was genuinely unclear across three tools
+> - An agent that drifted from its task across 20 steps with no single error raised
+
+**Your title:**
+
+
+---
+
+## 2. Why was it hard before K9 Audit?
+
+What made this resistant to ordinary log reading? Be specific.
+
+**Your answer:**
+
+
+---
+
+## 3. What did you feed into K9 Audit?
+
+> Examples: Claude Code session, @k9-wrapped function, JSON event log ingestion.
+
+**Your input:**
+
+
+---
+
+## 4. What did K9 Audit reveal?
+
+Structure your answer as a CIEU reading:
+
+**X_t** — Who was the actor? What was the context?
+
+**U_t** — What did they actually do?
+
+**Y\*_t** — What were they supposed to do?
+
+**Y_t+1** — What was the outcome?
+
+**R_t+1** — What was the deviation? Where did it start? Severity?
+
+**Your CIEU reading:**
+
+
+---
+
+## 5. What changed compared with the old approach?
+
+- **Time:** e.g. 4 hours → 12 minutes
+- **Certainty:** "we think it was X" → "here is the causal chain"
+- **Reproducibility:** can the finding be independently verified?
+
+**Your comparison:**
+
+
+---
+
+## 6. Attachments
+
+- [ ] CIEU log fragment (`~/.k9log/logs/k9log.cieu.jsonl` excerpt)
+- [ ] `k9log trace` output (paste as code block)
+- [ ] `k9log report` HTML file
+- [ ] Raw log fragment (redact sensitive fields first)
+
+---
+
+## Checklist
+
+- [ ] The problem was genuinely hard — not a demo or toy example
+- [ ] K9 Audit materially contributed to the finding
+- [ ] The finding is independently reproducible from the CIEU log
+- [ ] `k9log verify-log` confirms chain integrity
+- [ ] Sensitive data has been redacted
