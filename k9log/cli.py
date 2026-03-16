@@ -28,12 +28,47 @@ def main():
     """K9log - Engineering-grade Causal Audit"""
     pass
 
-@main.command(hidden=True)
+@main.command()
 def init():
-    """Interactive setup wizard"""
-    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
-    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
-    return
+    """Set up K9 Audit in the current project (creates .claude/settings.json)"""
+    import json
+    from pathlib import Path
+
+    cwd = Path.cwd()
+    claude_dir = cwd / ".claude"
+    settings_path = claude_dir / "settings.json"
+
+    console.print("[bold cyan]K9 Audit Setup[/bold cyan]")
+    console.print(f"[dim]Project: {cwd}[/dim]\n")
+
+    claude_dir.mkdir(exist_ok=True)
+
+    existing = {}
+    if settings_path.exists():
+        try:
+            existing = json.loads(settings_path.read_text(encoding="utf-8"))
+            console.print("[dim]Found existing .claude/settings.json — merging...[/dim]")
+        except Exception:
+            pass
+
+    hooks = existing.get("hooks", {})
+    hooks["PreToolUse"] = [{"matcher": ".*", "hooks": [{"type": "command", "command": "python -m k9log.hook"}]}]
+    hooks["PostToolUse"] = [{"matcher": ".*", "hooks": [{"type": "command", "command": "python -m k9log.hook_post"}]}]
+    existing["hooks"] = hooks
+
+    settings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    console.print("[green]✓ .claude/settings.json created[/green]")
+    console.print()
+    console.print("[bold]Next steps:[/bold]")
+    console.print("  1. Run Claude Code in this directory — K9 will monitor every action")
+    console.print("  2. Check results: [cyan]k9log stats[/cyan]")
+    console.print("  3. Inspect violations: [cyan]k9log trace --last[/cyan]")
+    console.print()
+    console.print("[dim]Quick test — trigger your first violation:[/dim]")
+    console.print('  [cyan]python -c "from k9log.core import k9\n@k9(deny_content=[chr(39)+chr(115)+chr(116)+chr(97)+chr(103)+chr(105)+chr(110)+chr(103)+chr(39)])\ndef f(x): return x\nf(chr(39)+chr(115)+chr(116)+chr(97)+chr(103)+chr(105)+chr(110)+chr(103)+chr(39))"[/cyan]')
+    console.print("  [cyan]k9log trace --last[/cyan]")
+
 
 @main.command()
 def stats():
