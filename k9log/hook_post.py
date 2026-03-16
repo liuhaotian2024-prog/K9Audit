@@ -289,8 +289,7 @@ def _suggest_magic_constraints(file_path):
             if node.name.startswith("_"):
                 continue
             cfg = _P.home() / ".k9log" / "config" / (node.name + ".json")
-            if cfg.exists():
-                continue
+            # Always suggest — Magic Moment shows what K9 detected regardless of existing config
             sugs = [s for s in infer_magic_suggestions(source, node) if s["confidence"] >= 0.8]
             if sugs:
                 hits.append((node.name, sugs))
