@@ -804,3 +804,47 @@ def _merge_contracts(parsed, inferred):
         del merged['_inferred']
 
     return {k: v for k, v in merged.items() if v}
+
+
+_MAGIC_AST_RULES = [
+    {"name":"file_write","detect":lambda n:isinstance(n,__import__("ast").Call) and isinstance(n.func,__import__("ast").Name) and n.func.id=="open" and any(isinstance(a,__import__("ast").Constant) and isinstance(a.value,str) and "w" in a.value for a in list(n.args[1:])+[kw.value for kw in n.keywords if kw.arg=="mode"]),"suggest":{"allowed_paths":["./output/**","./*.json","./*.yaml"]},"reason":"writes files","confidence":0.85},
+    {"name":"network","detect":lambda n:isinstance(n,__import__("ast").Attribute) and n.attr in("get","post","put","delete","patch","request") and isinstance(n.value,__import__("ast").Name) and n.value.id in("requests","httpx","urllib","aiohttp"),"suggest":{"deny_content":["staging.internal","*.internal","localhost","127.0.0.1"]},"reason":"makes HTTP requests","confidence":0.85},
+    {"name":"subprocess","detect":lambda n:isinstance(n,__import__("ast").Attribute) and n.attr in("run","call","Popen","check_output") and isinstance(n.value,__import__("ast").Name) and n.value.id=="subprocess","suggest":{"deny_content":["rm -rf","| bash","| sh","dd if="]},"reason":"runs shell commands","confidence":0.85},
+    {"name":"db","detect":lambda n:isinstance(n,__import__("ast").Attribute) and n.attr in("execute","executemany","query","raw") and isinstance(n.value,__import__("ast").Name),"suggest":{"deny_content":["DROP TABLE","DROP DATABASE","; --"]},"reason":"executes DB queries","confidence":0.85},
+]
+_MAGIC_PARAM_RULES = [
+    (["endpoint","url","host","base_url","api_url"],{"deny_content":["staging.internal","*.internal","localhost","127.0.0.1"]},"URL param",0.8),
+    (["environment","env","target_env","deploy_to"],"blocklist_prod","environment param",0.8),
+    (["query","sql","statement"],{"deny_content":["DROP TABLE","DROP DATABASE","; --"]},"SQL param",0.8),
+    (["path","file_path","filepath","output_path"],{"allowed_paths":["./output/**","./data/**"]},"file path param",0.75),
+    (["command","cmd","shell_cmd"],{"deny_content":["rm -rf","| bash","| sh"]},"command param",0.8),
+    (["amount","price","value","quantity","qty"],"max_10000","numeric param",0.7),
+    (["token","api_key","secret","password"],{"deny_content":["sk-","ghp_","xoxb-","AKIA"]},"credential param",0.85),
+]
+
+def infer_magic_suggestions(source, func_node):
+    import ast as _a
+    suggestions, seen = [], set()
+    for node in _a.walk(func_node):
+        for rule in _MAGIC_AST_RULES:
+            try:
+                if rule["detect"](node):
+                    k = str(rule["suggest"])
+                    if k not in seen:
+                        seen.add(k)
+                        suggestions.append({"constraint":rule["suggest"],"reason":f"{func_node.name}() {rule['reason']}","confidence":rule["confidence"],"source":f"ast:{rule['name']}"})
+            except Exception:
+                pass
+    args = [a.arg for a in func_node.args.args if a.arg not in ("self","cls")]
+    for arg in args:
+        for patterns, suggest_tmpl, reason, conf in _MAGIC_PARAM_RULES:
+            if any(p in arg.lower() for p in patterns):
+                if suggest_tmpl == "blocklist_prod": final = {arg:{"blocklist":["production","prod"]}}
+                elif suggest_tmpl == "max_10000": final = {arg:{"max":10000}}
+                else: final = suggest_tmpl
+                k = f"{arg}:{final}"
+                if k not in seen:
+                    seen.add(k)
+                    suggestions.append({"constraint":final,"reason":f"param '{arg}': {reason}","confidence":conf,"source":f"param:{arg}"})
+    suggestions.sort(key=lambda s:s["confidence"],reverse=True)
+    return suggestions

@@ -113,13 +113,13 @@ def _process_py_file_write(payload):
         if not Path(file_path).exists():
             return
         contracts = _extract_contracts_from_file(file_path)
-        if not contracts:
-            return
-        saved = _save_contracts(contracts, file_path)
-        if saved > 0:
-            sys.stderr.write(
-                f'[k9log] K9Contract: {saved} contract(s) saved from {file_path}\n'
-            )
+        if contracts:
+            saved = _save_contracts(contracts, file_path)
+            if saved > 0:
+                sys.stderr.write(
+                    f'[k9log] K9Contract: {saved} contract(s) saved from {file_path}\n'
+                )
+        _suggest_magic_constraints(file_path)
     except Exception as e:
         sys.stderr.write(f'[k9log] K9Contract parse failed: {e}\n')
 
