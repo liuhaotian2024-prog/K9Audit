@@ -3,6 +3,11 @@
 > ⭐ If K9 caught a real deviation for you, star the repo — it helps others find it.
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
+
+> **Commercial use is permitted.** You are not required to open-source your own agent code.
+> AGPL copyleft only applies if you distribute a modified version of K9 Audit itself.
+> Internal use · SaaS deployments · CI/CD pipelines — all permitted, no restrictions.
+> OEM embedding or white-labeling → [liuhaotian2024@gmail.com](mailto:liuhaotian2024@gmail.com)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Version](https://img.shields.io/badge/Version-0.3.3-blue.svg)
 ![Evidence](https://img.shields.io/badge/Evidence-SHA256_hash--chain-brightgreen.svg)
