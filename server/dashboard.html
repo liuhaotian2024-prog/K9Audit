@@ -351,10 +351,11 @@ function goPage(n) { page = n; renderTable(); }
 
 // Auto-connect if values pre-filled
 window.addEventListener('load', () => {
-  const ep = document.getElementById('inp-endpoint').value;
-  if (ep) {
-    // Don't auto-connect — wait for user to enter key
-  }
+  const saved_ep = localStorage.getItem('k9_endpoint');
+  const saved_key = localStorage.getItem('k9_apikey');
+  if (saved_ep) document.getElementById('inp-endpoint').value = saved_ep;
+  if (saved_key) document.getElementById('inp-apikey').value = saved_key;
+  if (saved_ep && saved_key) connect();
 });
 </script>
 </body>
