@@ -128,7 +128,8 @@ def main():
         badge = "🚨 CRITICAL" if severity >= 0.9 else "⚠️  WARNING" if severity >= 0.7 else "ℹ️  NOTICE"
 
         # 读取上下文信息
-        session_id = payload.get("session_id", "unknown")[:8]
+        _sid = payload.get("session_id", "unknown")
+        session_id = _sid.replace("session-", "")[:8] if _sid != "unknown" else "unknown"
         agent = "Claude Code"
 
         # Y*_t 意图合约描述
@@ -154,10 +155,7 @@ def main():
         sys.stderr.write(f"  ACTION:    Recorded in tamper-proof ledger\n")
         sys.stderr.write(f"             → k9log trace --last\n\n")
 
-        # 保留原来给 Claude Code 读的机器格式
-        sys.stderr.write(
-            "[k9log] VIOLATION - " + tool_name + ": " +
-            "; ".join(v["message"] for v in r["violations"]) + "\n"
+        # 机器格式已省略，人话输出已足够
         )
 
     sys.exit(0)
