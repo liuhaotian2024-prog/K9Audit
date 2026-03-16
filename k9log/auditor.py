@@ -123,6 +123,14 @@ def check_staging(root: Path) -> list[Finding]:
                 continue
             if combined.search(line):
                 matched = combined.search(line).group(0)
+                # Skip lines that are constraint config definitions
+                # (e.g. deny_content=['staging.internal'] in cli.py/constraints.py)
+                config_keywords = ['deny_content', 'deny_content=', 'DENY_CONTENT',
+                                   'infer_magic', '_MAGIC_', 'MAGIC_AST', 'MAGIC_PARAM',
+                                   'k9log init defaults', 'suggest', 'constraints']
+                is_config_line = any(kw in line for kw in config_keywords)
+                if is_config_line:
+                    continue
                 findings.append(Finding(
                     severity='HIGH',
                     check='staging',
