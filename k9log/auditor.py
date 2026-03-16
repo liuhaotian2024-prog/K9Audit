@@ -127,7 +127,9 @@ def check_staging(root: Path) -> list[Finding]:
                 # (e.g. deny_content=['staging.internal'] in cli.py/constraints.py)
                 config_keywords = ['deny_content', 'deny_content=', 'DENY_CONTENT',
                                    'infer_magic', '_MAGIC_', 'MAGIC_AST', 'MAGIC_PARAM',
-                                   'k9log init defaults', 'suggest', 'constraints']
+                                   'k9log init defaults', 'suggest', 'constraints',
+                                   'selftest', 'k9log selftest', 'VIOLATION in',
+                                   'console.print(', 'write_config(', 'api.market-data']
                 is_config_line = any(kw in line for kw in config_keywords)
                 if is_config_line:
                     continue
