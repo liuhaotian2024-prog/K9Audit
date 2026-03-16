@@ -80,3 +80,6 @@ logger.py
 
 .coverage
 index (1).html
+
+alert_section.txt
+fix_alerts.ps1

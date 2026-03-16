@@ -1,0 +1,22 @@
+$content = Get-Content "C:\Users\liuha\OneDrive\桌面\K9Audit\docs\index.html" -Raw
+$pass = 0; $fail = 0
+function Check { param($name, $expr) if ($expr) { Write-Host "  OK  $name" -ForegroundColor Green; $script:pass++ } else { Write-Host "  ERR $name" -ForegroundColor Red; $script:fail++ } }
+Check "CTA: Monitor a live agent"      ($content -match "Monitor a live agent")
+Check "CTA: Audit an existing AI repo" ($content -match "Audit an existing AI repo")
+Check "PreToolUse"                     ($content -match "PreToolUse")
+Check "PostToolUse"                    ($content -match "PostToolUse")
+Check "hook_post 命令"                 ($content -match "k9log.hook_post")
+Check "Trust strip"                    ($content -match "Zero upload")
+Check "K9 is not 模块"                 ($content -match "WHAT K9 DOES NOT DO")
+Check "60秒对比块"                     ($content -match "WITHOUT K9")
+Check "Live Feed JS"                   ($content -match "addFeedEvent")
+Check "Rule Builder presets"           ($content -match "loadPreset")
+Check "Alert preview 位置正确"         ($content -notmatch '"Telegram"</div>\s*<!-- Alert preview')
+Check "Alert channels 数量"            (([regex]::Matches($content, 'class="channel-card')).Count -ge 4)
+Check "Arena 折叠"                     ($content -match "toggleArena")
+Check "Arena 标题不重复"               (([regex]::Matches($content, 'section-label">K9 Arena')).Count -eq 1)
+Check "成功验证步骤"                   ($content -match "Trigger your first violation")
+Check "Dashboard Railway URL"          ($content -match "k9audit-production.up.railway.app")
+Check "PyPI 链接"                      ($content -match "pypi.org/project/k9audit-hook")
+Check "GitHub 链接"                    ($content -match "github.com/liuhaotian2024-prog/K9Audit")
+Write-Host ""; Write-Host "  结果: $pass 通过  $fail 失败" -ForegroundColor $(if ($fail -eq 0) {"Green"} else {"Yellow"})

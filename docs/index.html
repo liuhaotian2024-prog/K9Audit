@@ -486,6 +486,10 @@ setTimeout(()=>{addFeedEvent();setInterval(addFeedEvent,2500);},800);
     }],
     <span class="str">"PostToolUse"</span>: [{
       <span class="str">"matcher"</span>: <span class="str">".*"</span>,
+      <span class="str">"hooks"</span>: [{<span class="str">"type"</span>: <span class="str">"command"</span>, <span class="str">"command"</span>: <span class="str">"python -m k9log.hook_post"</span>}]
+    }],
+    <span class="str">"PostToolUse"</span>: [{
+      <span class="str">"matcher"</span>: <span class="str">".*"</span>,
       <span class="str">"hooks"</span>: [{
         <span class="str">"type"</span>: <span class="str">"command"</span>,
         <span class="str">"command"</span>: <span class="str">"python -m k9log.hook"</span>
