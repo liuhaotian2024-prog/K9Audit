@@ -65,7 +65,7 @@ def init():
     console.print("  2. Check results: [cyan]k9log stats[/cyan]")
     console.print("  3. Inspect violations: [cyan]k9log trace --last[/cyan]")
     console.print()
-    console.print("[Quick test — trigger your first violation:[/dim]")
+    console.print("[dim]Quick test — trigger your first violation:[/dim]")
     console.print("  [cyan]python -c \"from k9log.core import k9; @k9(deny_content=[\'staging.internal\']) \ndef f(x): return x\nf(\'https://api.staging.internal/v2\')\"[/cyan]")
     console.print("  [cyan]k9log trace --last[/cyan]")
 
