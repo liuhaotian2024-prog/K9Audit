@@ -741,3 +741,24 @@ For commercial licensing, contact: liuhaotian2024@gmail.com — see [PATENTS.md]
 AGPL-3.0. See [LICENSE](./LICENSE).
 
 Copyright (C) 2026 Haotian Liu
+
+---
+
+## Development
+
+### Release a new version
+```powershell
+powershell -ExecutionPolicy Bypass -File .\release.ps1 -Version X.X.X
+```
+
+This will:
+1. Bump version in `cli.py` and `pyproject.toml`
+2. Build the package
+3. Upload to PyPI (uses `~/.pypirc`, no token input needed)
+4. Git commit and push
+
+### Key URLs
+- PyPI: https://pypi.org/project/k9audit-hook/
+- Dashboard: https://k9audit-production.up.railway.app/dashboard
+- Frontend: https://liuhaotian2024-prog.github.io/K9Audit/
+- Railway: https://railway.app/dashboard
