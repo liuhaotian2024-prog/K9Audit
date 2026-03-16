@@ -96,8 +96,45 @@ def main():
     except Exception as e:
         sys.stderr.write(f"[k9log] Ledger write failed: {e}\n")
 
-    # ── stderr notice for violations (Claude Code reads stderr) ───────────
+    # ── 人话违规提示 ──────────────────────────────────────────────────────
     if not r["passed"]:
+        violations = r.get("violations", [])
+        top = violations[0] if violations else {}
+        severity = r.get("overall_severity", 0)
+        matched = top.get("matched", "")
+        vtype = top.get("type", "")
+
+        tool_desc = {
+            "Write": "is about to write a file",
+            "Edit": "is about to edit a file",
+            "Bash": "is about to run a command",
+            "Read": "is about to read a file",
+            "create_file": "is about to create a file",
+        }.get(tool_name, f"is about to use {tool_name}")
+
+        file_path = tool_input.get("file_path") or tool_input.get("path") or tool_input.get("command", "")[:60] or "unknown"
+
+        if "STAGING" in vtype or (matched and "staging" in matched.lower()):
+            problem = "staging/test server URL detected — should never appear in production"
+        elif "DENY_CONTENT" in vtype:
+            problem = f'forbidden content detected: "{matched}"'
+        elif "PATH" in vtype or "SCOPE" in vtype:
+            problem = "outside allowed file paths"
+        elif "SECRET" in vtype:
+            problem = "possible hardcoded secret detected"
+        else:
+            problem = top.get("message", "constraint violation")
+
+        badge = "🚨 CRITICAL" if severity >= 0.9 else "⚠️  WARNING" if severity >= 0.7 else "ℹ️  NOTICE"
+
+        sys.stderr.write(f"\n[K9 Audit] {badge} — Your agent {tool_desc}\n")
+        sys.stderr.write(f"  File: {file_path}\n")
+        sys.stderr.write(f"  Problem: {problem}\n")
+        if matched:
+            sys.stderr.write(f"  Found: \"{matched}\"\n")
+        sys.stderr.write(f"  Action recorded in ledger.\n\n")
+
+        # 保留原来给 Claude Code 读的机器格式
         sys.stderr.write(
             "[k9log] VIOLATION - " + tool_name + ": " +
             "; ".join(v["message"] for v in r["violations"]) + "\n"
