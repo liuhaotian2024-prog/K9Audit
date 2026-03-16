@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg)
+![Version](https://img.shields.io/badge/Version-0.3.3-blue.svg)
 ![Evidence](https://img.shields.io/badge/Evidence-SHA256_hash--chain-brightgreen.svg)
 ![Phase](https://img.shields.io/badge/Phase-Record_·_Trace_·_Verify_·_Report-orange.svg)
 
@@ -15,6 +15,67 @@ Your AI agent caused a problem in production. Your boss asks what happened. You 
 You want to deploy an agent inside your company. Your manager asks: what happens if it goes out of bounds? You don't have a good answer. The project dies in the approval meeting.
 
 **K9 Audit is built for exactly this kind of problem.**
+**This is what K9 Audit gives you instead:**
+```
+[K9 Audit] CRITICAL
+
+  WHO:       Claude Code (session: a1b2c3d4) → Write
+  CONTEXT:   About to write to: quant_backtest/config.json
+  INTENDED:  deny: staging.internal, *.internal
+  ACTUAL:    "https://api.market-data.staging.internal/v2/ohlcv"
+  DEVIATION: 0.90 — staging URL detected — should never reach production
+  ACTION:    Recorded in tamper-proof ledger · seq #451
+             → k9log trace --last
+```
+
+One second later, the full causal record:
+```
+k9log trace --last
+
+seq=451  2026-03-04 16:59:22 UTC
+
+─── X_t   Who acted, in what context ──────────────────────
+  agent:        Claude Code
+  session:      a1b2c3d4
+  action_class: WRITE
+
+─── U_t   What the agent actually did ─────────────────────
+  skill:    _write_file
+  target:   quant_backtest/config.json
+  content:  {"endpoint": "https://api.market-data.staging.internal/v2/ohlcv"}
+
+─── Y*_t  What it was supposed to do ──────────────────────
+  constraint:   deny_content → ["staging.internal", "*.internal"]
+  source:       config/write_config.json
+
+─── Y_t+1 What actually happened ──────────────────────────
+  status:   recorded  (executed — deviation flagged)
+  effect:   file written with forbidden content
+
+─── R_t+1 How far it diverged — and K9's response ─────────
+  passed:       false
+  severity:     0.90  [CRITICAL]
+  finding:      content contains forbidden pattern "staging.internal"
+  k9_response:  alert dispatched · ledger sealed · hash chained
+```
+
+Three lines of code. No changes to your agent.
+```python
+from k9log import k9, set_agent_identity
+set_agent_identity(agent_name='MyAgent')
+
+@k9(deny_content=['staging.internal'], amount={'max': 500})
+def write_config(path: str, content: dict) -> bool:
+    ...  # your existing code, completely unchanged
+```
+```bash
+pip install k9audit-hook
+k9log trace --last    # root cause in under a second
+k9log verify-log      # cryptographic proof nothing was tampered
+```
+
+This is not an LLM judging another LLM. K9 does not generate or guess. It records, measures, and proves.
+
 
 Whether it's a single agent or a multi-agent collaboration, every action is recorded as a causal five-tuple: who acted and under what conditions, what it did, what it was supposed to do, what actually resulted, and how far the outcome diverged. Records are SHA256 hash-chained — cryptographically verifiable, tamper-evident after the fact. When something goes wrong, `k9log trace --last` gives you the root cause in under a second. This is not an LLM judging another LLM — K9 does not generate or guess. It records, measures, and proves.
 
