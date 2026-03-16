@@ -275,6 +275,42 @@ def _print_human_summary(payload: dict, is_error: bool):
     except Exception as _e:
         sys.stderr.write(f"[k9log] summary error: {_e}\n")
 
+def _suggest_magic_constraints(file_path):
+    try:
+        import ast as _a
+        from pathlib import Path as _P
+        from k9log.constraints import infer_magic_suggestions
+        source = _P(file_path).read_text(encoding="utf-8-sig", errors="replace")
+        tree = _a.parse(source)
+        hits = []
+        for node in _a.walk(tree):
+            if not isinstance(node, (_a.FunctionDef, _a.AsyncFunctionDef)):
+                continue
+            if node.name.startswith("_"):
+                continue
+            cfg = _P.home() / ".k9log" / "config" / (node.name + ".json")
+            if cfg.exists():
+                continue
+            sugs = [s for s in infer_magic_suggestions(source, node) if s["confidence"] >= 0.8]
+            if sugs:
+                hits.append((node.name, sugs))
+        if not hits:
+            return
+        fname = str(file_path).replace("\\", "/").split("/")[-1]
+        sys.stderr.write("\n[K9 Magic] " + fname + " - K9 detected risky patterns:\n\n")
+        for fn_name, sugs in hits[:3]:
+            sys.stderr.write("  " + fn_name + "()\n")
+            for s in sugs[:2]:
+                parts = ", ".join(k + "=" + repr(v) for k, v in s["constraint"].items())
+                sys.stderr.write("    >> " + s["reason"] + "\n")
+                sys.stderr.write("       @k9(" + parts + ")\n")
+            sys.stderr.write("\n")
+        sys.stderr.write("  Add @k9(...) to activate protection.\n")
+        sys.stderr.write("  k9log health  to see full coverage\n\n")
+    except Exception:
+        pass
+
+
 def main():
     t0 = time.time()
     try:
