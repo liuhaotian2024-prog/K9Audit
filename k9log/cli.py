@@ -88,6 +88,7 @@ def init():
 def selftest_cmd():
     """Trigger a real violation and show full CIEU evidence — your Wow Moment"""
     import json, time
+    import logging as _logging; _logging.getLogger('k9log.core').setLevel(_logging.CRITICAL)
     from pathlib import Path
     from k9log.core import k9
     from k9log.identity import set_agent_identity
