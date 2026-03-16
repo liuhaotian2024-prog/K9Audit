@@ -156,7 +156,7 @@ def selftest_cmd():
     console.print("[bold]Step 3 of 3 — Verify the evidence is tamper-proof[/bold]")
     console.print()
     from k9log.verifier import LogVerifier
-    LogVerifier(log_file).verify()
+    LogVerifier(log_file).verify_integrity()
     console.print(f"  [green]✓ Hash chain intact[/green] — {len(records)} records, no tampering possible")
     console.print()
     console.print("─" * 58)
