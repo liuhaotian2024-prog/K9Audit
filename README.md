@@ -144,37 +144,9 @@ On March 4, 2026, during a routine quant backtesting session, Claude Code attemp
 
 Because the syntax was valid, no error was thrown. A conventional logger would have buried this silently in a text file — quietly corrupting every subsequent backtest result.
 
-Here is how K9 Audit traced the root cause using the Ledger immediately:
+Three attempts. 41 minutes apart. K9 caught all three. The full causal evidence is shown at the top of this page — that is exactly what `k9log trace --last` produced, live, from the Ledger.
 
-```
-k9log trace --last
-
-seq=451  2026-03-04 16:59:22 UTC
-
-─── X_t  Context ──────────────────────────────────
-  agent:    Claude Code  (session: abc123)
-  action:   WRITE
-
-─── U_t  What happened ────────────────────────────
-  skill:    _write_file
-  target:   quant_backtest/config.json
-  content:  {"endpoint": "https://api.market-data.staging.internal/..."}
-
-─── Y*_t  Intent Contract ─────────────────────────
-  constraint: deny_content → ["staging.internal"]
-  source:     config/write_config.json
-
-─── Y_t+1  Outcome ────────────────────────────────
-  status:   recorded  (executed with silent deviation)
-
-─── R_t+1  Assessment ─────────────────────────────
-  passed:   false
-  severity: 0.9
-  finding:  content contains forbidden pattern "staging.internal"
-  causal_proof: root cause traced to step #451, chain intact
-
-→  Three attempts. 41 minutes apart. All recorded.
-```
+This incident is documented in full as [Case #001](./challenge/examples/case_001_rebuild_loop.md).
 
 ---
 
