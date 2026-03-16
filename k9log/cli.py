@@ -57,17 +57,30 @@ def init():
     existing["hooks"] = hooks
 
     settings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+    console.print("[green]✓ .claude/settings.json[/green]")
 
-    console.print("[green]✓ .claude/settings.json created[/green]")
+    config_dir = Path.home() / ".k9log" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    defaults = {'Write': {'skill': 'Write', 'constraints': {'deny_content': ['staging.internal', '*.internal', '*.staging.*', 'localhost', '127.0.0.1', 'BEGIN RSA PRIVATE KEY', 'BEGIN PRIVATE KEY', 'sk-', 'ghp_', 'xoxb-', 'AKIA']}, 'version': '1.0.0', '_source': 'k9log init defaults'}, 'Edit': {'skill': 'Edit', 'constraints': {'deny_content': ['staging.internal', '*.internal', '*.staging.*', 'localhost', '127.0.0.1', 'BEGIN RSA PRIVATE KEY', 'BEGIN PRIVATE KEY', 'sk-', 'ghp_', 'xoxb-', 'AKIA']}, 'version': '1.0.0', '_source': 'k9log init defaults'}, 'Bash': {'skill': 'Bash', 'constraints': {'deny_content': ['rm -rf /', 'rm -rf ~', 'dd if=/dev/zero', 'mkfs', '| bash', '| sh', 'github:*/', 'npm install git+', 'pip install git+http', 'eval $(', 'exec 3<>/dev/tcp']}, 'version': '1.0.0', '_source': 'k9log init defaults'}, 'str_replace_based_edit_tool': {'skill': 'str_replace_based_edit_tool', 'constraints': {'deny_content': ['staging.internal', '*.internal', 'BEGIN RSA PRIVATE KEY', 'BEGIN PRIVATE KEY', 'sk-', 'ghp_', 'AKIA']}, 'version': '1.0.0', '_source': 'k9log init defaults'}, 'MultiEdit': {'skill': 'MultiEdit', 'constraints': {'deny_content': ['staging.internal', '*.internal', 'BEGIN PRIVATE KEY', 'sk-', 'ghp_']}, 'version': '1.0.0', '_source': 'k9log init defaults'}}
+    installed, skipped = [], []
+    for skill, cfg in defaults.items():
+        f = config_dir / f"{skill}.json"
+        if f.exists():
+            skipped.append(skill)
+        else:
+            f.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+            installed.append(skill)
+    if installed:
+        console.print(f"[green]✓ Default constraints: {", ".join(installed)}[/green]")
+    if skipped:
+        console.print(f"[dim]  Skipped (exist): {", ".join(skipped)}[/dim]")
+
     console.print()
-    console.print("[bold]Next steps:[/bold]")
-    console.print("  1. Run Claude Code in this directory — K9 will monitor every action")
-    console.print("  2. Check results: [cyan]k9log stats[/cyan]")
-    console.print("  3. Inspect violations: [cyan]k9log trace --last[/cyan]")
+    console.print("[bold]K9 is now watching. Every Claude Code action will be audited.[/bold]")
     console.print()
-    console.print("[dim]Quick test — trigger your first violation:[/dim]")
-    console.print("  [cyan]python -m k9log.selftest[/cyan]")
-    console.print("  [cyan]k9log trace --last[/cyan]")
+    console.print("  [cyan]k9log selftest[/cyan]       ← trigger your first violation now")
+    console.print("  [cyan]k9log trace --last[/cyan]   ← see the full causal evidence")
+    console.print("  [cyan]k9log health[/cyan]         ← confirm all skills are covered")
 
 
 
