@@ -1032,7 +1032,10 @@ def health_cmd(log):
     tbl = Table(show_header=True, header_style="bold")
     tbl.add_column("Skill"); tbl.add_column("Calls", justify="right")
     tbl.add_column("Constrained", justify="right"); tbl.add_column("Status")
+    INTERNAL_SKILLS = {"k9log.outcome", "k9log.internal", "k9log.hook"}
     for skill in sorted(skill_total.keys()):
+        if skill in INTERNAL_SKILLS:
+            continue
         c = skill_covered[skill]; t = skill_total[skill]
         status = "[green]OK[/green]" if c == t else "[yellow]PARTIAL[/yellow]" if c > 0 else "[red]UNCOVERED[/red]"
         tbl.add_row(skill, str(t), str(c), status)

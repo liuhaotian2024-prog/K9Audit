@@ -123,6 +123,13 @@ def k9(func=None, **inline_constraints):
                         return
                 if not source_clean:
                     return
+                # 持久化检查：已建议过则跳过
+                try:
+                    seen_f = _P.home() / ".k9log" / "magic_seen" / (f.__name__ + ".seen")
+                    if seen_f.exists():
+                        return
+                except Exception:
+                    pass
                 from k9log.constraints import infer_magic_suggestions
                 tree = _ast.parse(source_clean)
                 for node in _ast.walk(tree):
@@ -136,6 +143,13 @@ def k9(func=None, **inline_constraints):
                             parts = ", ".join(k + "=" + repr(v) for k, v in s["constraint"].items())
                             _sys.stderr.write("  >> " + s["reason"] + "\n")
                             _sys.stderr.write("     @k9(" + parts + ")\n")
+                        # 写 marker 避免重复建议
+                        try:
+                            seen_dir = _P.home() / ".k9log" / "magic_seen"
+                            seen_dir.mkdir(parents=True, exist_ok=True)
+                            (seen_dir / (f.__name__ + ".seen")).write_text("suggested")
+                        except Exception:
+                            pass
                         _sys.stderr.write("\n  Add @k9(...) to activate protection.\n\n")
                         return
             except Exception:

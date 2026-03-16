@@ -611,6 +611,7 @@ k9log verify-log               # verify full SHA256 hash chain integrity
 k9log verify-ystar             # verify intent contract coverage across all skills
 k9log report --output out.html # basic summary report — violation details, causal graph, compliance export: Enterprise
 k9log health                   # system health check: ledger + integrity + coverage
+k9log selftest                 # trigger a real violation and see full CIEU five-tuple evidence
 k9log alerts status            # show alerting channel status
 k9log audit ./my-project       # static analysis: staging URLs, secrets, missing imports
 k9log audit ./my-project --checks staging,secrets --output report.html
