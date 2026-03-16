@@ -170,6 +170,35 @@ def selftest_cmd():
     console.print("  [cyan]k9log verify-log[/cyan]      ← cryptographic proof anytime")
     console.print()
 
+    import os
+    cwd = os.getcwd()
+    already_init = os.path.exists(os.path.join(cwd, ".claude", "settings.json"))
+
+    console.print("─" * 58)
+    console.print()
+    if already_init:
+        console.print("[bold green]✓ K9 is already connected to this project.[/bold green]")
+        console.print()
+        console.print("  Restart Claude Code and let it run any task.")
+        console.print("  The moment it touches a forbidden pattern,")
+        console.print("  you will see the same alert — but from a [bold]real agent action[/bold].")
+        console.print()
+        console.print("  That is your Activation moment.")
+        console.print()
+    else:
+        console.print("[bold]Now connect K9 to your real project:[/bold]")
+        console.print()
+        console.print("  [dim]1.[/dim]  [cyan]cd /your/project[/cyan]")
+        console.print("  [dim]2.[/dim]  [cyan]k9log init[/cyan]              ← installs protection in 5 seconds")
+        console.print("  [dim]3.[/dim]  Restart Claude Code")
+        console.print()
+        console.print("  The moment your agent touches a forbidden pattern,")
+        console.print("  you will see the exact same output you just saw —")
+        console.print("  but from a [bold]real agent action[/bold], on your real code.")
+        console.print()
+        console.print("  [dim]That is your Activation moment.[/dim]")
+        console.print()
+
 
 @main.command()
 def stats():
