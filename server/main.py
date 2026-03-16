@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
@@ -53,6 +53,35 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
 )
+
+# ── WebSocket connection manager ──────────────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active: dict[str, list[WebSocket]] = {}  # workspace_id -> [ws]
+
+    async def connect(self, ws: WebSocket, workspace_id: str):
+        await ws.accept()
+        self.active.setdefault(workspace_id, []).append(ws)
+
+    def disconnect(self, ws: WebSocket, workspace_id: str):
+        conns = self.active.get(workspace_id, [])
+        if ws in conns:
+            conns.remove(ws)
+
+    async def broadcast(self, workspace_id: str, message: dict):
+        conns = self.active.get(workspace_id, [])[:]
+        import json as _json
+        text = _json.dumps(message, ensure_ascii=False)
+        dead = []
+        for ws in conns:
+            try:
+                await ws.send_text(text)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws, workspace_id)
+
+manager = ConnectionManager()
 
 security = HTTPBearer(auto_error=False)
 
@@ -260,6 +289,48 @@ def get_records(
     total = len(all_records)
     page  = all_records[offset: offset + limit]
     return {"records": page, "total": total, "offset": offset, "limit": limit}
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket, api_key: str = ""):
+    """WebSocket endpoint for real-time Dashboard updates."""
+    if not api_key:
+        await ws.close(code=4001)
+        return
+    if VALID_KEYS and api_key not in VALID_KEYS:
+        await ws.close(code=4003)
+        return
+    workspace_id = _workspace_id(api_key)
+    await manager.connect(ws, workspace_id)
+    try:
+        # Send current status on connect
+        ledger_path = _workspace_ledger(workspace_id)
+        total = 0
+        violations = 0
+        if ledger_path.exists():
+            with open(ledger_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        total += 1
+                        if not rec.get("R_t+1", {}).get("passed", True):
+                            violations += 1
+                    except Exception:
+                        continue
+        await ws.send_text(json.dumps({
+            "type": "connected",
+            "workspace": workspace_id,
+            "total_records": total,
+            "violations": violations,
+        }))
+        # Keep alive
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(ws, workspace_id)
+
 
 @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 def dashboard():

@@ -145,6 +145,8 @@ async function apiFetch(path, params='') {
   return r.json();
 }
 
+let _ws = null;
+
 async function connect() {
   API = document.getElementById('inp-endpoint').value.replace(/\/$/, '');
   KEY = document.getElementById('inp-apikey').value;
@@ -155,11 +157,34 @@ async function connect() {
     document.getElementById('status-text').textContent = '已连接';
     document.getElementById('nav-workspace').textContent = 'ws: ' + s.workspace.slice(0,12) + '...';
     setView(currentView);
+    _connectWebSocket();
   } catch(e) {
     document.getElementById('status-dot').className = 'err';
     document.getElementById('status-text').textContent = '连接失败';
     document.getElementById('content').innerHTML = '<div class="empty">连接失败：' + e.message + '</div>';
   }
+}
+
+function _connectWebSocket() {
+  if (_ws) { _ws.close(); _ws = null; }
+  const wsUrl = API.replace(/^http/, 'ws') + '/ws?api_key=' + encodeURIComponent(KEY);
+  try {
+    _ws = new WebSocket(wsUrl);
+    _ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'new_records' && msg.accepted > 0) {
+          setView(currentView);
+          if (msg.violations > 0) {
+            document.getElementById('status-text').textContent = '已连接 · 🚨 ' + msg.violations + ' 条新违规';
+            setTimeout(() => { document.getElementById('status-text').textContent = '已连接'; }, 5000);
+          }
+        }
+      } catch(_) {}
+    };
+    _ws.onclose = () => { setTimeout(() => { if (API && KEY) _connectWebSocket(); }, 10000); };
+    _ws.onerror = () => { _ws = null; };
+  } catch(_) {}
 }
 
 function setView(v) {
