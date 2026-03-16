@@ -609,7 +609,7 @@ k9log causal --last            # causal chain analysis: auto-detect and find roo
 k9log causal --step 7          # causal chain analysis for a specific step
 k9log verify-log               # verify full SHA256 hash chain integrity
 k9log verify-ystar             # verify intent contract coverage across all skills
-k9log report --output out.html # generate an interactive causal graph report
+k9log report --output out.html # basic summary report — violation details, causal graph, compliance export: Enterprise
 k9log health                   # system health check: ledger + integrity + coverage
 k9log alerts status            # show alerting channel status
 k9log audit ./my-project       # static analysis: staging URLs, secrets, missing imports

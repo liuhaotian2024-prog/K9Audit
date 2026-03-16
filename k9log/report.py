@@ -530,11 +530,22 @@ td.mono {{
 
 <div class="header">
     <div class="logo"><span>K9</span>log</div>
-    <div class="subtitle">Causal Audit Report</div>
+    <div class="subtitle">Causal Audit Report &mdash; <span style=\"font-size:13px;opacity:0.7\">Basic</span></div>
     <div class="timestamp">Generated {html.escape(now)}</div>
 </div>
 
-<div class="chain-status {'chain-ok' if chain_ok else 'chain-broken'}">
+</div>
+
+<div style="background:#1a1f2e;border:1px solid #2a3550;border-radius:8px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div style="font-size:13px;color:#8a9bb8;line-height:1.6">
+        <strong style="color:#c8d4e8">Basic Report</strong> includes summary statistics, skill coverage, and hash chain verification.<br>
+        Violation details, causal graph, evidence timeline, and compliance export are available in the
+        <strong style="color:#c8d4e8">Enterprise plan</strong>.
+    </div>
+    <a href="mailto:liuhaotian2024@gmail.com?subject=K9 Audit Enterprise Inquiry" style="background:#2563eb;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;text-decoration:none;white-space:nowrap">
+        Enterprise plan &rarr;
+    </a>
+</div><div class="chain-status {'chain-ok' if chain_ok else 'chain-broken'}">
     {'&#x2705; Hash Chain Intact &mdash; All ' + str(total) + ' records verified, no tampering detected' if chain_ok else '&#x274C; Hash Chain Broken &mdash; Log integrity compromised, possible tampering'}
 </div>
 
