@@ -207,3 +207,7 @@ def load_suggested_grants(grants_dir: Optional[Path] = None) -> List[Grant]:
         except Exception:
             pass
     return grants
+
+
+# Alias for backward compatibility
+load_grants_from_dir = load_active_grants
