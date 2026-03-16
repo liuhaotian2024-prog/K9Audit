@@ -78,7 +78,7 @@ k9log verify-log      # cryptographic proof nothing was tampered
 This is not an LLM judging another LLM. K9 does not generate or guess. It records, measures, and proves.
 
 
-Whether it's a single agent or a multi-agent collaboration, every action is recorded as a causal five-tuple: who acted and under what conditions, what it did, what it was supposed to do, what actually resulted, and how far the outcome diverged. Records are SHA256 hash-chained — cryptographically verifiable, tamper-evident after the fact. When something goes wrong, `k9log trace --last` gives you the root cause in under a second. This is not an LLM judging another LLM — K9 does not generate or guess. It records, measures, and proves.
+
 
 ---
 
