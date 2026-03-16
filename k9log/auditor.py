@@ -76,6 +76,7 @@ SKIP_FILES = {
     "auditor.py", "k9_live_test.py", "k9_concurrency_test.py",
     "hook.py",  # root-level standalone copy
     "main.py",  # server infrastructure
+    "openclaw.py",  # examples in docstrings are not real violations
 }
 
 SKIP_DIRS = {

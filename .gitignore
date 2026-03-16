@@ -77,3 +77,6 @@ logger.py
 
 hook.py
 logger.py
+
+.coverage
+index (1).html
