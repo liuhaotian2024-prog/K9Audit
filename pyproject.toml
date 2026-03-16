@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "k9audit-hook"
-version = "0.2.7"
+version = "0.2.8"
 description = "K9 Audit with Hook Connector — for Claude Code and hook-compatible agents"
 license = "AGPL-3.0-or-later"
 authors = [{name = "Haotian Liu"}]
