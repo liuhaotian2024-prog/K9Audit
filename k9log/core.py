@@ -67,6 +67,80 @@ def k9(func=None, **inline_constraints):
             return result
     """
     def decorator(f):
+        _magic_fired = [False]
+
+        def _maybe_fire_magic():
+            if _magic_fired[0]:
+                return
+            _magic_fired[0] = True
+            if inline_constraints:
+                return
+            try:
+                from pathlib import Path as _P
+                cfg = _P.home() / ".k9log" / "config" / (f.__name__ + ".json")
+                if cfg.exists():
+                    import json as _json
+                    try:
+                        existing = _json.loads(cfg.read_text(encoding="utf-8"))
+                        src = existing.get("_source", "")
+                        if src not in ("k9log init defaults", "K9Law inferred", "", None):
+                            return
+                    except Exception:
+                        return
+                import ast as _ast, textwrap as _tw
+                source_clean = None
+                try:
+                    import inspect as _ins
+                    source_clean = _tw.dedent(_ins.getsource(f))
+                except Exception:
+                    pass
+                if source_clean is None:
+                    try:
+                        fname = f.__code__.co_filename
+                        if fname.startswith("<"):
+                            return
+                        fline = f.__code__.co_firstlineno
+                        lines = _P(fname).read_text(encoding="utf-8", errors="replace").splitlines()
+                        fl, started, indent = [], False, None
+                        for i, line in enumerate(lines):
+                            if i + 1 >= fline:
+                                if not started:
+                                    s = line.strip()
+                                    if s.startswith("def ") or s.startswith("async def "):
+                                        started = True
+                                        indent = len(line) - len(line.lstrip())
+                                        fl.append(line)
+                                else:
+                                    ci = len(line) - len(line.lstrip())
+                                    if line.strip() == "":
+                                        fl.append(line)
+                                    elif ci <= indent and line.strip().startswith("def "):
+                                        break
+                                    else:
+                                        fl.append(line)
+                        source_clean = _tw.dedent("\n".join(fl))
+                    except Exception:
+                        return
+                if not source_clean:
+                    return
+                from k9log.constraints import infer_magic_suggestions
+                tree = _ast.parse(source_clean)
+                for node in _ast.walk(tree):
+                    if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                        sugs = [s for s in infer_magic_suggestions(source_clean, node) if s["confidence"] >= 0.8]
+                        if not sugs:
+                            return
+                        import sys as _sys
+                        _sys.stderr.write("\n[K9 Magic] " + f.__name__ + "() - K9 detected risky patterns:\n\n")
+                        for s in sugs[:3]:
+                            parts = ", ".join(k + "=" + repr(v) for k, v in s["constraint"].items())
+                            _sys.stderr.write("  >> " + s["reason"] + "\n")
+                            _sys.stderr.write("     @k9(" + parts + ")\n")
+                        _sys.stderr.write("\n  Add @k9(...) to activate protection.\n\n")
+                        return
+            except Exception:
+                pass
+
         # ── Async path ──────────────────────────────────────────────────────
         if inspect.iscoroutinefunction(f):
             @functools.wraps(f)
