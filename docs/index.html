@@ -253,8 +253,8 @@ footer a:hover{color:var(--amber)}
     <span>⚡ &lt;1ms overhead per call</span>
   </div>
   <div class="hero-actions" style="margin-top:16px">
-    <a href="#integrate" class="btn-primary">Get started in 5 min →</a>
-    <a href="#posthoc" class="btn-secondary">Audit existing codebase</a>
+    <a href="#integrate" class="btn-primary">Monitor a live agent →</a>
+    <a href="#posthoc" class="btn-secondary">Audit an existing AI repo</a>
     <a href="https://github.com/liuhaotian2024-prog/K9Audit" class="btn-secondary" target="_blank">GitHub</a>
   </div>
 
@@ -480,6 +480,10 @@ setTimeout(()=>{addFeedEvent();setInterval(addFeedEvent,2500);},800);
             <div class="code-block"><span class="cm">// .claude/settings.json</span>
 {
   <span class="str">"hooks"</span>: {
+    <span class="str">"PreToolUse"</span>: [{
+      <span class="str">"matcher"</span>: <span class="str">".*"</span>,
+      <span class="str">"hooks"</span>: [{<span class="str">"type"</span>: <span class="str">"command"</span>, <span class="str">"command"</span>: <span class="str">"python -m k9log.hook"</span>}]
+    }],
     <span class="str">"PostToolUse"</span>: [{
       <span class="str">"matcher"</span>: <span class="str">".*"</span>,
       <span class="str">"hooks"</span>: [{
@@ -853,41 +857,6 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
       <div class="channel-card selected" onclick="selectChannel('telegram',this)">
         <div class="channel-icon">✈️</div>
         <div class="channel-name">Telegram</div>
-    <!-- Alert preview -->
-    <div style="margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-      <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px">
-        <span style="font-size:11px;color:var(--text2);font-family:var(--mono)">Alert payload preview</span>
-        <button onclick="previewAlert()" style="margin-left:auto;background:var(--amber);color:var(--bg);border:none;padding:4px 14px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:700">Send test violation →</button>
-      </div>
-      <pre id="alert-preview" style="padding:14px 16px;font-size:11px;color:var(--text2);font-family:var(--mono);white-space:pre-wrap;line-height:1.6">[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)
-
-─── X_t  Context ───────────────────────
-  agent:   Claude Code
-  action:  WRITE
-  session: abc123
-
-─── U_t  What happened ─────────────────
-  skill:   write_config
-  target:  quant_backtest/config.json
-  content: {"endpoint": "https://api.staging.internal/..."}
-
-─── R_t+1  Assessment ──────────────────
-  passed:  false
-  finding: content contains forbidden pattern "staging.internal"
-
-→  k9log trace --step 42</pre>
-    </div>
-    <script>
-    function previewAlert(){
-      const el=document.getElementById('alert-preview');
-      el.style.color='var(--amber)';
-      setTimeout(()=>el.style.color='var(--text2)',1200);
-      // Flash to simulate "sent"
-      el.textContent='✓ Test alert sent — check your configured channel';
-      setTimeout(()=>{el.style.color='var(--text2)';el.textContent=`[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)\n\n─── X_t  Context ───────────────────────\n  agent:   Claude Code\n  action:  WRITE\n  session: abc123\n\n─── U_t  What happened ─────────────────\n  skill:   write_config\n  target:  quant_backtest/config.json\n  content: {"endpoint": "https://api.staging.internal/..."}\n\n─── R_t+1  Assessment ──────────────────\n  passed:  false\n  finding: content contains forbidden pattern "staging.internal"\n\n→  k9log trace --step 42`;},2000);
-    }
-    </script>
-
         <div class="channel-desc">Instant push to any chat</div>
       </div>
       <div class="channel-card" onclick="selectChannel('slack',this)">
@@ -906,6 +875,37 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
         <div class="channel-desc">Live browser feed</div>
       </div>
     </div>
+
+    <!-- Alert preview -->
+    <div style="margin-top:0;margin-bottom:24px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;color:var(--text2);font-family:var(--mono)">Alert payload preview</span>
+        <button onclick="previewAlert()" style="margin-left:auto;background:var(--amber);color:var(--bg);border:none;padding:4px 14px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:700">Send test violation →</button>
+      </div>
+      <pre id="alert-preview" style="padding:14px 16px;font-size:11px;color:var(--text2);font-family:var(--mono);white-space:pre-wrap;line-height:1.6">[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)
+
+─── X_t  Context ───────────────────────
+  agent:   Claude Code  action: WRITE
+─── U_t  What happened ─────────────────
+  skill:   write_config
+  content: "https://api.staging.internal/..."
+─── R_t+1  Assessment ──────────────────
+  passed:  false  severity: 0.9 CRITICAL
+  finding: forbidden pattern "staging.internal"
+→  k9log trace --step 42</pre>
+    </div>
+    <script>
+    function previewAlert(){
+      const el=document.getElementById('alert-preview');
+      el.style.color='var(--teal)';
+      el.textContent='✓ Test alert payload shown above — configure a channel to receive it';
+      setTimeout(()=>{
+        el.style.color='var(--text2)';
+        el.textContent='[K9 Audit] Deviation Detected  seq=42  severity=HIGH (0.9)\n\n─── X_t  Context ───────────────────────\n  agent:   Claude Code  action: WRITE\n─── U_t  What happened ─────────────────\n  skill:   write_config\n  content: "https://api.staging.internal/..."\n─── R_t+1  Assessment ──────────────────\n  passed:  false  severity: 0.9 CRITICAL\n  finding: forbidden pattern "staging.internal"\n→  k9log trace --step 42';
+      },2500);
+    }
+    </script>
+
     <div class="alert-config-area">
       <div>
         <div class="config-panel active" id="cfg-telegram">
@@ -955,7 +955,7 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
           <div class="alert-form">
             <div class="form-group">
               <label class="form-label">Live Dashboard (Railway)</label>
-              <input class="form-input" id="web-port" type="text" value="https://k9audit-production.up.railway.app" oninput="updateAlertConfig()" readonly style="color:var(--teal)">
+              <input class="form-input" id="web-port" type="text" value="https://k9audit-production.up.railway.app" readonly style="color:var(--teal)">
             </div>
             <p style="font-size:12px;color:var(--text2);margin-bottom:16px">The web dashboard is hosted on Railway. Open it in any browser — no local setup needed.</p>
             <div class="form-group">
@@ -968,26 +968,9 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
                 <span class="dash-live">live</span>
               </div>
               <div class="dash-events">
-                <div class="dash-event critical">
-                  <span class="event-score critical">0.90</span>
-                  <span class="event-detail">write_config → staging.internal detected</span>
-                  <span class="event-time">16:59:22</span>
-                </div>
-                <div class="dash-event warning">
-                  <span class="event-score warning">0.72</span>
-                  <span class="event-detail">read_file → path outside allowed_paths</span>
-                  <span class="event-time">16:58:01</span>
-                </div>
-                <div class="dash-event ok">
-                  <span class="event-score ok">0.95</span>
-                  <span class="event-detail">execute_code → all constraints met</span>
-                  <span class="event-time">16:57:44</span>
-                </div>
-                <div class="dash-event ok">
-                  <span class="event-score ok">1.00</span>
-                  <span class="event-detail">write_file → conformant</span>
-                  <span class="event-time">16:57:10</span>
-                </div>
+                <div class="dash-event critical"><span class="event-score critical">0.90</span><span class="event-detail">write_config → staging.internal detected</span><span class="event-time">16:59:22</span></div>
+                <div class="dash-event warning"><span class="event-score warning">0.72</span><span class="event-detail">read_file → path outside allowed_paths</span><span class="event-time">16:58:01</span></div>
+                <div class="dash-event ok"><span class="event-score ok">0.95</span><span class="event-detail">execute_code → all constraints met</span><span class="event-time">16:57:44</span></div>
               </div>
             </div>
           </div>
@@ -1005,7 +988,6 @@ k9log verify-log<button class="copy-btn" onclick="copyCode(this)">copy</button><
     </div>
   </div>
 </section>
-
 <!-- POST-HOC AUDIT -->
 <section id="posthoc" class="sec-pad">
   <div class="container">
