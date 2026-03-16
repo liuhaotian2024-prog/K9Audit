@@ -326,8 +326,8 @@ class CIEULogger:
                               __import__('datetime').timezone.utc).isoformat(),
             'X_t': {
                 'tool_use_id': tool_use_id,
-                'agent_name':  'Claude Code',
-                'agent_type':  'coding_assistant',
+                'agent_name':  __import__('k9log.identity', fromlist=['get_agent_identity']).get_agent_identity().get('agent_name', 'unknown') if __import__('k9log.identity', fromlist=['get_agent_identity']).get_agent_identity() else 'unknown',
+                'agent_type':  __import__('k9log.identity', fromlist=['get_agent_identity']).get_agent_identity().get('agent_type', 'unknown') if __import__('k9log.identity', fromlist=['get_agent_identity']).get_agent_identity() else 'unknown',
             },
             'U_t': {
                 'skill':  'k9log.outcome',
