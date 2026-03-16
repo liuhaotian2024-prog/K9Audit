@@ -1,5 +1,7 @@
 # 🐕‍🦺 K9 Audit
 
+> ⭐ If K9 caught a real deviation for you, star the repo — it helps others find it.
+
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg)
