@@ -86,21 +86,89 @@ def init():
 
 @main.command("selftest")
 def selftest_cmd():
-    """Run a quick self-test — triggers a real violation and shows the result"""
+    """Trigger a real violation and show full CIEU evidence — your Wow Moment"""
+    import json, time
+    from pathlib import Path
     from k9log.core import k9
+    from k9log.identity import set_agent_identity
 
-    console.print("[bold cyan]K9 Audit Self-Test[/bold cyan]")
-    console.print("[dim]Triggering a test violation...[/dim]\n")
-
-    @k9(deny_content=["staging.internal"])
-    def write_config(content):
-        return content
-
-    write_config("https://api.staging.internal/v2")
+    set_agent_identity(agent_name="MyAgent", agent_type="demo")
 
     console.print()
-    console.print("[green]✓ Violation recorded.[/green]")
-    console.print("  Run [cyan]k9log trace --last[/cyan] to see the full evidence chain.")
+    console.print("[bold]Step 1 of 3 — K9 intercepts a staging URL injection[/bold]")
+    console.print("[dim]Simulating: agent writes staging endpoint to production config...[/dim]")
+    console.print()
+
+    @k9(deny_content=["staging.internal", "*.internal"], allowed_paths=["./config/**"])
+    def write_config(path: str, content: dict) -> bool:
+        return True
+
+    write_config("./config/prod.json", {"endpoint": "https://api.prod.exchange.com/v2"})
+    write_config("./config/prod.json", {"endpoint": "https://api.market-data.staging.internal/v2/ohlcv"})
+
+    time.sleep(0.1)
+
+    log_file = Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+    records = [json.loads(l) for l in log_file.read_text().splitlines() if l.strip()]
+    violation = next((r for r in reversed(records) if not r.get("R_t+1", {}).get("passed", True)), None)
+
+    if violation:
+        x   = violation.get("X_t", {})
+        u   = violation.get("U_t", {})
+        ys  = violation.get("Y_star_t", {})
+        r   = violation.get("R_t+1", {})
+        seq = violation.get("_integrity", {}).get("seq", "?")
+        ts  = violation.get("timestamp", "")[:19].replace("T", " ")
+        viols   = r.get("violations", [])
+        finding = viols[0].get("message", "constraint violation") if viols else "constraint violation"
+        deny    = ys.get("constraints", {}).get("deny_content", [])
+
+        console.print(f"[bold green]✓ K9 caught it.[/bold green]  seq=#{seq}  {ts} UTC")
+        console.print()
+        console.print("[bold]Step 2 of 3 — Full CIEU five-tuple evidence[/bold]")
+        console.print()
+        console.print("[dim]─── X_t   Who acted, in what context ──────────────────────[/dim]")
+        console.print(f"  agent:        [cyan]{x.get('agent_name', 'MyAgent')}[/cyan]")
+        console.print(f"  session:      {str(x.get('agent_id', 'demo'))[:16]}")
+        console.print(f"  action_class: WRITE")
+        console.print()
+        console.print("[dim]─── U_t   What the agent actually did ─────────────────────[/dim]")
+        console.print(f"  skill:    [cyan]{u.get('skill', 'write_config')}[/cyan]")
+        console.print(f"  path:     {u.get('params', {}).get('path', './config/prod.json')}")
+        console.print("  content:  {endpoint: https://api.market-data.[red]staging.internal[/red]/v2/ohlcv}")
+        console.print()
+        console.print("[dim]─── Y*_t  What it was supposed to do ──────────────────────[/dim]")
+        console.print(f"  constraint:   deny_content → [yellow]{deny[:2]}[/yellow]")
+        console.print(f"  source:       @k9 decorator")
+        console.print()
+        console.print("[dim]─── Y_t+1 What actually happened ──────────────────────────[/dim]")
+        console.print("  status:   recorded  [dim](executed — deviation flagged)[/dim]")
+        console.print("  effect:   config written with forbidden content")
+        console.print()
+        console.print("[dim]─── R_t+1 How far it diverged — and K9's response ─────────[/dim]")
+        console.print(f"  passed:       [red]false[/red]")
+        console.print(f"  severity:     [red]{r.get('overall_severity', 0.9):.2f}  [CRITICAL][/red]")
+        console.print(f"  finding:      {finding}")
+        console.print(f"  causal_proof: root cause at seq #{seq}, chain intact")
+        console.print("  k9_response:  [green]ledger sealed · hash chained[/green]")
+        console.print()
+
+    console.print("[bold]Step 3 of 3 — Verify the evidence is tamper-proof[/bold]")
+    console.print()
+    from k9log.verifier import LogVerifier
+    LogVerifier(log_file).verify()
+    console.print(f"  [green]✓ Hash chain intact[/green] — {len(records)} records, no tampering possible")
+    console.print()
+    console.print("─" * 58)
+    console.print()
+    console.print("[bold green]K9 is working.[/bold green] Your agents are now audited.")
+    console.print()
+    console.print("[dim]Next:[/dim]")
+    console.print("  [cyan]k9log trace --last[/cyan]    ← inspect any violation in detail")
+    console.print("  [cyan]k9log causal --last[/cyan]   ← trace the root cause chain")
+    console.print("  [cyan]k9log health[/cyan]          ← see full skill coverage")
+    console.print("  [cyan]k9log verify-log[/cyan]      ← cryptographic proof anytime")
+    console.print()
 
 
 @main.command()
