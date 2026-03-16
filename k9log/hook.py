@@ -127,12 +127,32 @@ def main():
 
         badge = "🚨 CRITICAL" if severity >= 0.9 else "⚠️  WARNING" if severity >= 0.7 else "ℹ️  NOTICE"
 
-        sys.stderr.write(f"\n[K9 Audit] {badge} — Your agent {tool_desc}\n")
-        sys.stderr.write(f"  File: {file_path}\n")
-        sys.stderr.write(f"  Problem: {problem}\n")
-        if matched:
-            sys.stderr.write(f"  Found: \"{matched}\"\n")
-        sys.stderr.write(f"  Action recorded in ledger.\n\n")
+        # 读取上下文信息
+        session_id = payload.get("session_id", "unknown")[:8]
+        agent = "Claude Code"
+
+        # Y*_t 意图合约描述
+        deny = y_star_t.get("constraints", {}).get("deny_content", [])
+        allowed = y_star_t.get("constraints", {}).get("allowed_paths", [])
+        intended_desc = ""
+        if deny:
+            intended_desc = "deny: " + ", ".join(deny[:2])
+        elif allowed:
+            intended_desc = "only write to: " + ", ".join(allowed[:2])
+        else:
+            intended_desc = "no constraints defined"
+
+        # 实际内容
+        actual = matched or tool_input.get("content", tool_input.get("command", str(tool_input)))[:80]
+
+        sys.stderr.write(f"\n[K9 Audit] {badge}\n")
+        sys.stderr.write(f"  WHO:       {agent} (session: {session_id}) → {tool_name}\n")
+        sys.stderr.write(f"  CONTEXT:   About to write to: {file_path}\n")
+        sys.stderr.write(f"  INTENDED:  {intended_desc}\n")
+        sys.stderr.write(f"  ACTUAL:    \"{actual}\"\n")
+        sys.stderr.write(f"  DEVIATION: {severity:.2f} — {problem}\n")
+        sys.stderr.write(f"  ACTION:    Recorded in tamper-proof ledger\n")
+        sys.stderr.write(f"             → k9log trace --last\n\n")
 
         # 保留原来给 Claude Code 读的机器格式
         sys.stderr.write(

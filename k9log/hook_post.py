@@ -244,12 +244,36 @@ def _print_human_summary(payload: dict, is_error: bool):
         else:
             problem = top.get("message", "violated a constraint")
         badge = "🚨 CRITICAL" if severity >= 0.9 else "⚠️  WARNING" if severity >= 0.7 else "ℹ️  NOTICE"
+
+        # 从 ledger 读取上下文
+        xt = last.get("X_t", {})
+        session_id = str(xt.get("session_id", "unknown"))[:8]
+        agent = xt.get("agent_name", "Claude Code")
+
+        # Y*_t 意图合约
+        ystar = last.get("Y_star_t", {})
+        deny = ystar.get("constraints", {}).get("deny_content", [])
+        allowed = ystar.get("constraints", {}).get("allowed_paths", [])
+        if deny:
+            intended_desc = "deny: " + ", ".join(str(d) for d in deny[:2])
+        elif allowed:
+            intended_desc = "only write to: " + ", ".join(allowed[:2])
+        else:
+            intended_desc = "no violations expected"
+
+        # 实际内容
+        ut = last.get("U_t", {})
+        params = ut.get("params", {})
+        actual = matched or params.get("content", params.get("command", str(params)))[:80]
+
         sys.stderr.write(f"\n[K9 Audit] {badge}\n")
-        sys.stderr.write(f"  Your agent {tool_desc}: {file_path}\n")
-        sys.stderr.write(f"  Problem: {problem}\n")
-        if matched:
-            sys.stderr.write(f"  Found: \"{matched}\"\n")
-        sys.stderr.write(f"  → Run: k9log trace --last\n\n")
+        sys.stderr.write(f"  WHO:       {agent} (session: {session_id}) → {tool_name}\n")
+        sys.stderr.write(f"  CONTEXT:   Wrote to: {file_path}\n")
+        sys.stderr.write(f"  INTENDED:  {intended_desc}\n")
+        sys.stderr.write(f"  ACTUAL:    \"{actual}\"\n")
+        sys.stderr.write(f"  DEVIATION: {severity:.2f} — {problem}\n")
+        sys.stderr.write(f"  ACTION:    Recorded in tamper-proof ledger · seq #{last.get('_integrity', {}).get('seq', '?')}\n")
+        sys.stderr.write(f"             → k9log trace --last\n\n")
     except Exception as _e:
         sys.stderr.write(f"[k9log] summary error: {_e}\n")
 
