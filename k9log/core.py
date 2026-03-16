@@ -72,6 +72,7 @@ def k9(func=None, **inline_constraints):
             @functools.wraps(f)
             async def async_wrapper(*args, **kwargs):
                 start_time = time.time()
+                _maybe_fire_magic()
                 logger = get_logger()
                 identity = get_agent_identity()
                 x_t = _capture_context(f, identity)
@@ -130,6 +131,7 @@ def k9(func=None, **inline_constraints):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             start_time = time.time()
+            _maybe_fire_magic()
 
             if _DEBUG:
                 _k9_log.debug('[k9] -> entering %s', f.__name__)
