@@ -66,8 +66,28 @@ def init():
     console.print("  3. Inspect violations: [cyan]k9log trace --last[/cyan]")
     console.print()
     console.print("[dim]Quick test — trigger your first violation:[/dim]")
-    console.print("  [cyan]python -c \"from k9log.core import k9; @k9(deny_content=[\'staging.internal\']) \ndef f(x): return x\nf(\'https://api.staging.internal/v2\')\"[/cyan]")
+    consconsole.print("  [cyan]python -m k9log.selftest[/cyan]")
     console.print("  [cyan]k9log trace --last[/cyan]")
+
+
+
+@main.command("selftest")
+def selftest_cmd():
+    """Run a quick self-test — triggers a real violation and shows the result"""
+    from k9log.core import k9
+
+    console.print("[bold cyan]K9 Audit Self-Test[/bold cyan]")
+    console.print("[dim]Triggering a test violation...[/dim]\n")
+
+    @k9(deny_content=["staging.internal"])
+    def write_config(content):
+        return content
+
+    write_config("https://api.staging.internal/v2")
+
+    console.print()
+    console.print("[green]✓ Violation recorded.[/green]")
+    console.print("  Run [cyan]k9log trace --last[/cyan] to see the full evidence chain.")
 
 
 @main.command()
