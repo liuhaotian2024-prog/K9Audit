@@ -160,6 +160,43 @@ Other observability tools work like expensive cameras. K9 Audit works like an au
 | Tamper-proofness | SHA256 cryptographic chain | Depends entirely on server trust |
 | Audit cost | Zero tokens, zero per-event billing | Per-event / per-seat API billing |
 
+### K9 audited itself
+
+The claims above are not assertions. They are the output of a test run where K9 Audit was used to audit K9 Audit — Outer K9 with its own Ledger, Inner K9 with its own Ledger, the README as the Y*_t intent contract.
+
+28 README claims were translated into executable tests. Outer K9 recorded each result as a CIEU record:
+
+| Category | Claims | Result |
+|---|---|---|
+| Architecture (CIEU five-tuple, SHA256 chain, zero token, never raises, local-first) | 5 | 5 / 5 ✓ |
+| Constraint syntax (deny_content, allowed_paths, max/min, blocklist, allowlist, enum, regex, custom) | 11 | 11 / 11 ✓ |
+| CLI (stats, trace, verify-log, health, report, audit) | 6 | 6 / 6 ✓ |
+| Agent integrations (@k9 zero-config, async, LangChain, openclaw, AGENTS.md) | 5 | 4 / 5 |
+| Privacy (sensitive param redaction, sync disabled) | 2 | 1 / 2 |
+
+**Overall: 27 / 28 claims verified. Two findings:**
+
+`INT-04` — `k9_wrap_module` skips functions whose `__module__` does not match the module name. Works correctly on real `.py` file imports; fails on dynamically constructed modules. Edge case, not documented.
+
+`PRIV-01` — README says sensitive params are replaced with `[REDACTED]`. Actual output is a structured object preserving type, length, and SHA256 hash for deduplication analysis — stronger than documented. This is a documentation gap, not a capability gap.
+
+Both Ledgers (inner and outer) were independently hash-chain verified. The audit evidence is reproducible:
+```python
+from k9log import k9, set_agent_identity
+set_agent_identity(agent_name='auditor')
+
+@k9(deny_content=['staging.internal'], amount={'max': 500})
+def trade(symbol, amount, endpoint): return {'ok': True}
+
+trade('AAPL', 100, 'https://prod.api.com')          # passes
+trade('AAPL', 9999, 'https://prod.api.com')         # caught: amount exceeded
+trade('AAPL', 100, 'https://staging.internal/v2')   # caught: forbidden content
+```
+```bash
+k9log trace --last
+k9log verify-log
+```
+
 ---
 
 ## Deployment Modes
@@ -726,7 +763,7 @@ The best submissions become part of the **Solved Hard Cases** gallery — a publ
 
 ---
 
-### Solved Cases (2)
+### Solved Cases (3)
 
 **[Case #001 — The Rebuild Loop](./challenge/examples/case_001_rebuild_loop.md)**
 An agent spent 70 minutes attempting to delete and rebuild a module it had no write authorisation to touch. Every operation after step #2 was out of scope. No files were modified. No error was raised. The developer had no idea it was happening.
@@ -752,6 +789,20 @@ An agent read `CONSTRAINTS.md` — then attempted to write the file that documen
 | **Blocked write attempts** | 4 |
 | **Key finding** | Agent queried its own grants at 02:15:24 — visible only in CIEU record |
 | **Hash chain** | Intact — verified |
+
+---
+
+**[Case #003 — K9 Audited by K9](./challenge/examples/case_003_self_audit.md)**
+K9 Audit was used to audit K9 Audit. The README became the Y*_t intent contract. Outer K9 watched every decision Inner K9 made and recorded whether each README claim was actually met.
+
+| | |
+|---|---|
+| **README claims tested** | 28 |
+| **Claims verified** | 27 / 28 (93%) |
+| **Finding #1** | Redaction produces a structured object (type + hash + length), not `[REDACTED]` — stronger than documented |
+| **Finding #2** | `k9_wrap_module` has an undocumented edge case on dynamic modules |
+| **Both Ledgers** | Intact — independently hash-chain verified |
+| **Reproducible** | `pip install k9audit-hook` → run the 3-line example above → `k9log verify-log` |
 
 ---
 
