@@ -23,7 +23,7 @@ from rich.table import Table
 console = Console()
 
 @click.group()
-@click.version_option(version='0.3.1')
+@click.version_option(version='0.3.2')
 def main():
     """K9log - Engineering-grade Causal Audit"""
     pass
