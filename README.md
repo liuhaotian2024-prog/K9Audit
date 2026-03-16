@@ -56,6 +56,7 @@ seq=451  2026-03-04 16:59:22 UTC
   passed:       false
   severity:     0.90  [CRITICAL]
   finding:      content contains forbidden pattern "staging.internal"
+  causal_proof: root cause traced to step #451, chain intact
   k9_response:  alert dispatched · ledger sealed · hash chained
 ```
 
