@@ -101,7 +101,9 @@ def _process_py_file_write(payload):
         if tool_name not in write_tools:
             return
         # Get file path from tool input
-        tool_input = payload.get('tool_input', {})
+        tool_input = payload.get("tool_input", {})
+        ut = last.get("U_t", {})
+        skill = ut.get("skill", payload.get("tool_name", "unknown"))
         file_path = (
             tool_input.get('file_path') or
             tool_input.get('path') or ''
@@ -190,6 +192,67 @@ def _broadcast_root_cause(is_error: bool, payload: dict):
     except Exception:
         pass  # causal broadcast must never affect hook execution
 
+
+def _print_human_summary(payload: dict, is_error: bool):
+    """用人话打印审计摘要，只在发现问题时打印。"""
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        log_file = _Path.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+        if not log_file.exists():
+            return
+        records = []
+        with open(log_file, encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line:
+                    try:
+                        records.append(_json.loads(_line))
+                    except Exception:
+                        pass
+        if not records:
+            return
+        last = None
+        for r in reversed(records):
+            if not r.get("R_t+1", {}).get("passed", True):
+                last = r
+                break
+        if not last:
+            return
+        assessment = last.get("R_t+1", {})
+        violations = assessment.get("violations", [])
+        if not violations:
+            return
+        top = violations[0]
+        severity = assessment.get("overall_severity", 0)
+        matched = top.get("matched", "")
+        vtype = top.get("type", "")
+        tool_input = payload.get("tool_input", {})
+        file_path = (tool_input.get("file_path") or tool_input.get("path") or "unknown")
+        tool_name = payload.get("tool_name", "")
+        tool_desc = {"Write": "wrote a file", "Edit": "edited a file",
+                     "Bash": "ran a command", "Read": "read a file",
+                     "create_file": "created a file"}.get(tool_name, f"used {tool_name}")
+        if "STAGING" in vtype or (matched and "staging" in matched.lower()):
+            problem = "wrote a staging/test server URL — this should never appear in production"
+        elif "DENY_CONTENT" in vtype:
+            problem = f"wrote forbidden content: \"{matched}\""
+        elif "PATH" in vtype or "SCOPE" in vtype:
+            problem = "wrote outside the allowed file paths"
+        elif "SECRET" in vtype:
+            problem = "may have written a hardcoded secret or API key"
+        else:
+            problem = top.get("message", "violated a constraint")
+        badge = "🚨 CRITICAL" if severity >= 0.9 else "⚠️  WARNING" if severity >= 0.7 else "ℹ️  NOTICE"
+        sys.stderr.write(f"\n[K9 Audit] {badge}\n")
+        sys.stderr.write(f"  Your agent {tool_desc}: {file_path}\n")
+        sys.stderr.write(f"  Problem: {problem}\n")
+        if matched:
+            sys.stderr.write(f"  Found: \"{matched}\"\n")
+        sys.stderr.write(f"  → Run: k9log trace --last\n\n")
+    except Exception as _e:
+        sys.stderr.write(f"[k9log] summary error: {_e}\n")
+
 def main():
     t0 = time.time()
     try:
@@ -223,6 +286,12 @@ def main():
 
     # 2. If a .py file was written, extract and save K9Contract blocks
     _process_py_file_write(payload)
+
+    # 用人话打印审计摘要
+    _print_human_summary(payload, is_error)
+
+    # 根因广播
+    _broadcast_root_cause(is_error, payload)
 
     sys.exit(0)
 
