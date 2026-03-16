@@ -66,7 +66,7 @@ def init():
     console.print("  3. Inspect violations: [cyan]k9log trace --last[/cyan]")
     console.print()
     console.print("[dim]Quick test — trigger your first violation:[/dim]")
-    consconsole.print("  [cyan]python -m k9log.selftest[/cyan]")
+    console.print("  [cyan]python -m k9log.selftest[/cyan]")
     console.print("  [cyan]k9log trace --last[/cyan]")
 
 
