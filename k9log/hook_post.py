@@ -27,7 +27,7 @@ def _extract_contracts_from_file(file_path):
     try:
         import ast
         from k9log.constraints import parse_k9contract, _infer_contracts_from_ast, _merge_contracts
-        source = Path(file_path).read_text(encoding='utf-8')
+        source = Path(file_path).read_text(encoding='utf-8-sig', errors='replace')
         tree = ast.parse(source)
         contracts = {}
         for node in ast.walk(tree):
