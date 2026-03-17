@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "k9audit",
+  "version": "0.3.3",
+  "description": "Causal audit infrastructure for Claude Code. Records every agent action as a CIEU five-tuple including the intent contract Y*_t — answering the question no logger can: 'Did the agent see the constraint before it violated it?' Fully local, zero upload, cryptographic hash chain.",
+  "author": {
+    "name": "liuhaotian2024",
+    "email": "liuhaotian2024@gmail.com"
+  },
+  "license": "AGPL-3.0",
+  "homepage": "https://github.com/liuhaotian2024-prog/K9Audit",
+  "category": "audit",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "description": "Records intent contract Y*_t before every tool call"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "description": "Records observed effect and violation status after every tool call"
+      }
+    ]
+  },
+  "install": {
+    "steps": [
+      "pip install k9audit-hook",
+      "Add hooks to .claude/settings.json (see README)"
+    ]
+  }
+}
