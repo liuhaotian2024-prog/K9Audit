@@ -80,7 +80,11 @@ print(f"[Scan] {len(ALL_FILES)} files found in repository\n")
     rule_id={"enum": ["SUPERSEDED", "ORPHANED_TXT", "ARTIFACT", "ORPHANED_JSONL", "UNREFERENCED_SCRIPT", "ENCODING_ISSUE", "DUPLICATE_CONFIG"]},
 )
 def audit_file(file_path: str, rule_id: str, verdict: str, reason: str) -> dict:
-    """Record one file audit result as a CIEU record."""
+    """Record one file audit result as a CIEU record.
+    K9Contract:
+      invariant: len(file_path) > 0
+      invariant: len(rule_id) > 0
+    """
     return {
         "file": file_path,
         "rule": rule_id,
@@ -162,10 +166,6 @@ if rule3_count == 0:
 print("\n[Rule 4] ORPHANED_JSONL — .jsonl without corresponding .md\n")
 
 jsonl_files = [f for f in ALL_FILES if f.suffix == '.jsonl']
-# Exclude runtime-generated data directories
-RUNTIME_DIRS = {'server/data', 'server\\data'}
-jsonl_files = [f for f in jsonl_files if not any(
-    str(f.relative_to(REPO_ROOT)).startswith(d) for d in RUNTIME_DIRS)]
 rule4_count = 0
 
 # Known legitimate standalone jsonl files
@@ -227,13 +227,8 @@ KNOWN_SCRIPTS = {
     'setup_k9audit.ps1' # not .py
 }
 
-STANDALONE_KEYWORDS = {'test', 'replay', 'audit', 'cleanup'}
 for f in root_py:
     if f.name in KNOWN_SCRIPTS:
-        continue
-    if any(kw in f.stem.lower() for kw in STANDALONE_KEYWORDS):
-        audit_file(str(f.relative_to(REPO_ROOT)), 'UNREFERENCED_SCRIPT', 'CLEAN',
-                  f'Standalone script by naming convention ({f.stem})')
         continue
     stem = f.stem
     in_readme = stem in README or f.name in README
@@ -321,4 +316,3 @@ Now run:
   k9log stats
   k9log report --output case_004_evidence.html
 """)
-

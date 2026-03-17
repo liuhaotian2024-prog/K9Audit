@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K9 Audit — Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  .screen {
+    width: 780px;
+    background: #0d0d0d;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,255,100,0.08), 0 30px 80px rgba(0,0,0,0.8);
+    border: 1px solid #1a1a1a;
+  }
+
+  .titlebar {
+    background: #1c1c1c;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.red   { background: #ff5f57; }
+  .dot.yellow{ background: #febc2e; }
+  .dot.green { background: #28c840; }
+
+  .titlebar-text {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 0.5px;
+  }
+
+  .terminal {
+    padding: 24px 28px 32px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #c8c8c8;
+    min-height: 500px;
+  }
+
+  .line { display: block; white-space: pre; }
+  .line.hidden { display: none; }
+
+  /* Colors */
+  .g  { color: #3ddc84; }        /* green — success */
+  .gg { color: #3ddc84; font-weight: 700; } /* bold green */
+  .r  { color: #ff6b6b; }        /* red — violation */
+  .rr { color: #ff4444; font-weight: 700; } /* bold red */
+  .y  { color: #ffd93d; }        /* yellow — label */
+  .c  { color: #69d2f7; }        /* cyan — value */
+  .d  { color: #555; }           /* dim */
+  .w  { color: #ffffff; font-weight: 700; } /* white bold */
+  .m  { color: #bf7fff; }        /* magenta */
+
+  /* Cursor */
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: #3ddc84;
+    vertical-align: middle;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Prompt */
+  .prompt { color: #3ddc84; }
+
+  /* Typing line */
+  .typing-line {
+    display: block;
+    white-space: pre;
+    overflow: hidden;
+    width: 0;
+  }
+
+  /* Fade in for groups */
+  .fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Highlight box for the violation */
+  .violation-box {
+    border-left: 2px solid #ff4444;
+    padding-left: 12px;
+    margin: 4px 0;
+  }
+
+  /* Restart button */
+  .restart-btn {
+    display: none;
+    margin-top: 20px;
+    background: none;
+    border: 1px solid #3ddc84;
+    color: #3ddc84;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .restart-btn:hover {
+    background: #3ddc84;
+    color: #0d0d0d;
+  }
+
+  /* Tagline at end */
+  .tagline {
+    display: none;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #1e1e1e;
+    text-align: center;
+  }
+  .tagline .big {
+    font-size: 15px;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .tagline .small {
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="titlebar">
+    <div class="dot red"></div>
+    <div class="dot yellow"></div>
+    <div class="dot green"></div>
+    <div class="titlebar-text">Terminal — k9audit demo</div>
+  </div>
+  <div class="terminal" id="terminal">
+    <span id="cursor-line"><span class="prompt">❯ </span><span id="typing-cmd"></span><span class="cursor" id="cursor"></span></span>
+    <div id="output"></div>
+    <button class="restart-btn" id="restartBtn" onclick="restart()">↺ replay</button>
+    <div class="tagline" id="tagline">
+      <span class="big">Not a log. A causal proof.</span>
+      <span class="small">pip install k9audit-hook</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const CMD = 'k9log selftest';
+
+// All lines to show, in sequence
+// Each item: { delay_before, lines: [{text, class}] }
+const SEQUENCE = [
+  // Step 0: show command (typed out)
+  { type: 'cmd', delay: 800 },
+
+  // Blank line after command
+  { type: 'lines', delay: 400, lines: [
+    { t: '', c: '' }
+  ]},
+
+  // Step 1 header
+  { type: 'lines', delay: 200, lines: [
+    { t: 'Step 1 of 3 — K9 intercepts a staging URL injection', c: 'w' },
+    { t: 'Simulating: agent writes staging endpoint to production config...', c: 'd' },
+  ]},
+
+  // Pause — dramatic moment
+  { type: 'pause', delay: 1200 },
+
+  // The catch
+  { type: 'lines', delay: 0, lines: [
+    { t: '✓ K9 caught it.  seq=#1  2026-03-16 21:19:00 UTC', c: 'gg' },
+    { t: '', c: '' },
+  ]},
+
+  // Step 2
+  { type: 'lines', delay: 500, lines: [
+    { t: 'Step 2 of 3 — Full CIEU five-tuple evidence', c: 'w' },
+    { t: '', c: '' },
+  ]},
+
+  // X_t
+  { type: 'lines', delay: 300, lines: [
+    { t: '─── X_t   Who acted, in what context ──────────────────────', c: 'd' },
+    { t: '  agent:        MyAgent', c: '' },
+    { t: '  session:      agent-6b5ef393', c: '' },
+    { t: '  action_class: WRITE', c: '' },
+    { t: '', c: '' },
+  ]},
+
+  // U_t
+  { type: 'lines', delay: 300, lines: [
+    { t: '─── U_t   What the agent actually did ─────────────────────', c: 'd' },
+    { t: '  skill:    write_config', c: 'c' },
+    { t: '  path:     ./config/prod.json', c: '' },
+    { t: '  content:  {endpoint: https://api.market-data.', c: '', suffix: true },
+  ]},
+
+  // The red staging URL — separate item for dramatic pause
+  { type: 'pause', delay: 400 },
+
+  { type: 'lines', delay: 0, lines: [
+    { t: '  ⚠  staging.internal/v2/ohlcv  ← FORBIDDEN', c: 'rr' },
+    { t: '', c: '' },
+  ]},
+
+  // Y*_t
+  { type: 'lines', delay: 400, lines: [
+    { t: '─── Y*_t  What it was supposed to do ──────────────────────', c: 'd' },
+    { t: "  constraint:   deny_content → ['staging.internal', '*.internal']", c: 'y' },
+    { t: '  source:       @k9 decorator', c: '' },
+    { t: '', c: '' },
+  ]},
+
+  // Y_t+1
+  { type: 'lines', delay: 300, lines: [
+    { t: '─── Y_t+1 What actually happened ──────────────────────────', c: 'd' },
+    { t: '  status:   recorded  (executed — deviation flagged)', c: '' },
+    { t: '  effect:   config written with forbidden content', c: 'r' },
+    { t: '', c: '' },
+  ]},
+
+  // R_t+1
+  { type: 'lines', delay: 300, lines: [
+    { t: '─── R_t+1 How far it diverged — K9\'s response ─────────────', c: 'd' },
+    { t: '  passed:       false', c: 'rr' },
+    { t: '  severity:     0.90  [CRITICAL]', c: 'rr' },
+    { t: "  finding:      Content contains forbidden pattern: 'staging.internal'", c: 'r' },
+    { t: '  causal_proof: root cause at seq #1, chain intact', c: '' },
+    { t: '  k9_response:  ledger sealed · hash chained', c: 'g' },
+    { t: '', c: '' },
+  ]},
+
+  // Step 3
+  { type: 'lines', delay: 600, lines: [
+    { t: 'Step 3 of 3 — Verify the evidence is tamper-proof', c: 'w' },
+    { t: '', c: '' },
+  ]},
+
+  { type: 'pause', delay: 800 },
+
+  { type: 'lines', delay: 0, lines: [
+    { t: '  ✓ Hash chain intact — 2 records, no tampering possible', c: 'gg' },
+    { t: '', c: '' },
+    { t: '──────────────────────────────────────────────────────────', c: 'd' },
+    { t: '', c: '' },
+    { t: 'K9 is working. Your agents are now audited.', c: 'gg' },
+    { t: '', c: '' },
+    { t: 'pip install k9audit-hook', c: 'm' },
+    { t: 'github.com/liuhaotian2024-prog/K9Audit', c: 'd' },
+  ]},
+
+  { type: 'end', delay: 1000 },
+];
+
+let step = 0;
+let running = false;
+
+function typeCommand(cmd, cb) {
+  const el = document.getElementById('typing-cmd');
+  let i = 0;
+  function next() {
+    if (i <= cmd.length) {
+      el.textContent = cmd.slice(0, i);
+      i++;
+      setTimeout(next, 55 + Math.random() * 30);
+    } else {
+      cb();
+    }
+  }
+  next();
+}
+
+function addLine(text, cls, suffix) {
+  const out = document.getElementById('output');
+  const span = document.createElement('span');
+  span.className = 'line fade-in' + (cls ? ' ' + cls : '');
+  span.textContent = text;
+  out.appendChild(span);
+  // scroll into view
+  span.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function runStep() {
+  if (step >= SEQUENCE.length) return;
+  const s = SEQUENCE[step];
+  step++;
+
+  if (s.type === 'cmd') {
+    setTimeout(() => {
+      typeCommand(CMD, () => {
+        // hide cursor after typing
+        setTimeout(() => {
+          document.getElementById('cursor-line').style.display = 'none';
+          runStep();
+        }, 300);
+      });
+    }, s.delay);
+
+  } else if (s.type === 'pause') {
+    setTimeout(runStep, s.delay);
+
+  } else if (s.type === 'lines') {
+    setTimeout(() => {
+      let lineDelay = 0;
+      s.lines.forEach((l, i) => {
+        setTimeout(() => {
+          addLine(l.t, l.c);
+          if (i === s.lines.length - 1) {
+            setTimeout(runStep, 100);
+          }
+        }, lineDelay);
+        lineDelay += l.t.length > 0 ? 80 + Math.random() * 40 : 40;
+      });
+    }, s.delay);
+
+  } else if (s.type === 'end') {
+    setTimeout(() => {
+      document.getElementById('tagline').style.display = 'block';
+      document.getElementById('restartBtn').style.display = 'inline-block';
+    }, s.delay);
+  }
+}
+
+function restart() {
+  step = 0;
+  document.getElementById('output').innerHTML = '';
+  document.getElementById('typing-cmd').textContent = '';
+  document.getElementById('cursor-line').style.display = 'block';
+  document.getElementById('tagline').style.display = 'none';
+  document.getElementById('restartBtn').style.display = 'none';
+  setTimeout(runStep, 500);
+}
+
+// Start on load
+window.onload = () => setTimeout(runStep, 800);
+</script>
+</body>
+</html>
