@@ -156,7 +156,21 @@ No estimates. No inferred durations. Every number is directly readable from the 
 ## Reproduce
 
 ```bash
-k9log trace --since "2026-03-04T20:53:00" --until "2026-03-04T22:04:00"
-k9log verify
-k9log report --output case_001.html
+# Generate the ledger from scratch
+python k9_case001_replay.py
+
+# Verify hash chain integrity (passes from seq=0)
+k9log verify-log
+
+# Trace the three staging URL violations
+k9log trace --step 9     # staging URL, attempt 1
+k9log trace --step 13    # staging URL bare string
+k9log trace --step 14    # staging URL, attempt 3
+
+# Trace the rm -rf and evasion attempts
+k9log trace --step 12    # rm -rf attempt 1
+k9log trace --step 18    # shutil.rmtree evasion
+
+# Generate shareable HTML evidence report
+k9log report --output case_001_evidence.html
 ```
