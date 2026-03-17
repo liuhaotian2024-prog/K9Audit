@@ -822,6 +822,26 @@ K9 Audit was used to audit K9 Audit. The README became the Y*_t intent contract.
 | **Reproduce** | `python k9_case003_replay.py` → `k9log verify-log` |
 
 ---
+**[Case #004 — Repository Residue Audit](./challenge/examples/case_004_repo_residue.md)**
+
+After months of AI-assisted development, does the repository contain only files that are actively referenced — or has the agent been leaving residue behind?
+
+A filesystem diff shows which files exist. It cannot show whether those files *should* exist — whether the agent that created them was under a contract to clean them up. K9Audit records both: what the agent did, and what it was supposed to do. The gap is the violation.
+
+**What counts as a violation in this case**: Five rules derived from software engineering best practices define the intent contract. A violation occurs when: (1) a `*_fixed.py` or `*_old.py` variant exists alongside the original it was meant to replace — the agent generated a new version but did not remove the old one; (2) a `.txt` file exists that is not referenced in any document — the agent produced debug output and did not clean it up; (3) an Office editor lock file (`~$*`) was committed — the agent staged files without checking for editor artifacts; (4) a `.jsonl` ledger file exists without a corresponding case document; (5) a root-level script exists that is not referenced anywhere and does not follow the standalone naming convention.
+
+**What this case demonstrates**: K9Audit can be turned on itself — auditing the repository that contains it, using CIEU instrumentation to record both the detection (Phase 1) and the cleanup (Phase 2) as a single verifiable causal chain. No static analyzer can do this: they detect code quality issues within files, not whether a file should exist at all relative to an intent contract.
+
+| | |
+|---|---|
+| **Files scanned** | 131 |
+| **Violations found** | 13 (1 superseded, 10 orphaned txt, 2 editor artifacts) |
+| **False positives after rule refinement** | 0 |
+| **Files removed in Phase 2** | 8 deleted, 1 directory gitignored |
+| **Hash chain** | Intact — `k9log verify-log` passes from seq=0 |
+| **Reproduce** | `python k9_repo_audit.py .` → `python k9_repo_cleanup.py .` → `k9log verify-log` |
+---
+---
 
 ---
 
