@@ -149,7 +149,7 @@ Because the syntax was valid, no error was thrown. A conventional logger would h
 
 Three attempts. 41 minutes apart. K9 caught all three. The full causal evidence is shown at the top of this page — that is exactly what `k9log trace --last` produced, live, from the Ledger.
 
-This incident is documented in full as [Case #001](./challenge/examples/case_001_rebuild_loop.md).
+This incident is documented in full as [Case #001](./challenge/examples/case_001_rebuild_loop.md). Reproduce it from scratch: `python k9_case001_replay.py` → `k9log verify-log`.
 
 ---
 
