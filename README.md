@@ -15,6 +15,10 @@ Your AI agent caused a problem in production. Your boss asks what happened. You 
 You want to deploy an agent inside your company. Your manager asks: what happens if it goes out of bounds? You don't have a good answer. The project dies in the approval meeting.
 
 **K9 Audit is built for exactly this kind of problem.**
+
+![K9 Audit Demo](docs/demo.gif)
+
+![K9 Audit Demo](docs/demo.gif)
 **This is what K9 Audit gives you instead:**
 ```
 [K9 Audit] CRITICAL
