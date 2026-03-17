@@ -18,7 +18,6 @@ You want to deploy an agent inside your company. Your manager asks: what happens
 
 ![K9 Audit Demo](docs/demo.gif)
 
-![K9 Audit Demo](docs/demo.gif)
 **This is what K9 Audit gives you instead:**
 ```
 [K9 Audit] CRITICAL
