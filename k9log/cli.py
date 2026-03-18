@@ -1026,42 +1026,13 @@ def grants_approve(grant_id, approve_all):
     else:
         console.print(f"[bold green]{len(approved)} grant(s) activated.[/bold green]")
 
-@main.command("learn")
-@click.option("--log", default=None)
-@click.option("--write-grants", "write_grants", is_flag=True, default=True)
-def learn_cmd(log, write_grants):
-    """Run causal metalearning on CIEU history, suggest tighter constraints."""
-    from pathlib import Path as _P
-    log_path = _P(log) if log else _P.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
-    if not log_path.exists():
-        console.print(f"[red]CIEU log not found: {log_path}[/red]"); return
-    console.print(f"\n[bold cyan]K9Audit Causal Metalearning[/bold cyan]")
-    console.print(f"  Log: {log_path}")
-    try:
-        from k9log.metalearning import learn
-        results = learn(log_file=str(log_path), write_grants=write_grants)
-        if not results:
-            console.print("[yellow]No patterns found yet. Need more CIEU history.[/yellow]"); return
-        console.print(f"[green]Found {len(results)} causal patterns[/green]\n")
-        result_list = results.get('minimum_cover', results.get('candidates', []))
-        for r in result_list[:10]:
-            rule_obj = r.get("rule", r) if isinstance(r.get("rule"), dict) else r
-            skill = rule_obj.get("target_skill", r.get("skill","?"))
-            rule = rule_obj.get("description", rule_obj.get("id","?"))[:80]
-            fp = r.get("fp_rate", rule_obj.get("fp_rate", "?"))
-            proof = r.get("causal_proof", "")[:60]
-            console.print(f"  [cyan]{skill}[/cyan] fp={fp}")
-            console.print(f"    Rule: {rule}")
-            console.print(f"    Proof: {proof}\n")
-        suggested = _P.home() / ".k9log" / "grants" / "suggested"
-        if write_grants and suggested.exists():
-            n = len(list(suggested.glob("*.json")))
-            console.print(f"[green]{n} grants in {suggested}[/green]")
-            console.print("[dim]Run: k9log grants approve --all[/dim]")
-    except Exception as e:
-        import traceback
-        console.print(f"[red]Error: {e}[/red]")
-        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+@main.command("learn", hidden=True)
+def learn_cmd():
+    """Run causal metalearning — suggest grants from incident history"""
+    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
+    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
+    return
+
 
 @main.command("health")
 @click.option("--log", default=None, help="CIEU log path (default: ~/.k9log/logs/k9log.cieu.jsonl)")
@@ -1662,141 +1633,66 @@ if __name__ == '__main__':
 
 
 
-@main.command(name="openclaw-setup")
-@click.option("--api-key",  default="", help="LLM API key (Anthropic/OpenAI/etc)")
-@click.option("--base-url", default="https://api.anthropic.com", help="LLM base URL")
-@click.option("--agents-md",default="", help="Path to AGENTS.md")
-@click.option("--no-llm",   is_flag=True, help="Skip LLM, use pattern matcher only")
-@click.option("--mode",     default="json", type=click.Choice(["json","python"]),
-              help="json=JSON constraints (default), python=Python code generation")
+@main.command(name='openclaw-setup')
+@click.option('--api-key', default='')
+@click.option('--base-url', default='https://api.anthropic.com')
+@click.option('--agents-md', default='')
+@click.option('--no-llm', is_flag=True, default=False)
+@click.option('--mode', default='json', type=click.Choice(['json','python']))
 def openclaw_setup(api_key, base_url, agents_md, no_llm, mode):
-    """One-command setup: parse AGENTS.md, verify constraints, start watcher."""
+    """One-command setup: parse AGENTS.md, scan history, start watcher."""
     from pathlib import Path as P
     import os, time
-    console.print("\nK9Audit OpenClaw Setup\n")
-    console.print("Step 1/3: Finding AGENTS.md...")
+    console.print('\nK9Audit OpenClaw Setup\n')
+    console.print('Step 1/3: Finding AGENTS.md...')
     if agents_md:
         ap = P(agents_md).expanduser()
     else:
         ap = None
-        for c in [P.cwd()/"AGENTS.md", P.home()/".openclaw"/"workspace"/"AGENTS.md",
-                  P.home()/".openclaw"/"AGENTS.md", P.home()/"AGENTS.md"]:
+        for c in [P.cwd()/'AGENTS.md', P.home()/'.openclaw'/'workspace'/'AGENTS.md',
+                  P.home()/'.openclaw'/'AGENTS.md', P.home()/'AGENTS.md']:
             if c.exists(): ap = c; break
     if not ap or not ap.exists():
-        ap = P.cwd() / "AGENTS.md"
-        ap.write_text("# Agent Rules\n## Security\n- Never run rm -rf\n- Do not modify .env files\n- Never access /etc/\n## File Access\n- Only write to ./projects/\n", encoding="utf-8")
-        console.print(f"  No AGENTS.md found. Created sample at: {ap}")
+        ap = P.cwd()/'AGENTS.md'
+        ap.write_text('# Agent Rules\n## Security\n- Never run rm -rf\n- Do not modify .env files\n- Never access /etc/\n## File Access\n- Only write to ./projects/\n', encoding='utf-8')
+        console.print(f'  No AGENTS.md found. Created sample at: {ap}')
     else:
-        console.print(f"  Found: {ap}")
-    console.print("\nStep 2/3: Parsing constraints...")
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY","") or os.environ.get("OPENAI_API_KEY","") or os.environ.get("K9LOG_LLM_API_KEY","")
-    if mode == "python" and not no_llm and key:
+        console.print(f'  Found: {ap}')
+    console.print('\nStep 2/3: Parsing constraints...')
+    key = api_key or os.environ.get('ANTHROPIC_API_KEY','') or os.environ.get('OPENAI_API_KEY','')
+    if mode == 'python' and not no_llm and key:
         from k9log.agents_md_llm import parse_agents_md_to_python
-        console.print("  Mode: Python code generation")
-        result = parse_agents_md_to_python(ap, api_key=key, base_url=base_url, save=True)
-        if hasattr(result, "_coverage"):
-            cov = result._coverage
-            console.print(f"  Coverage: {cov['covered']}/{cov['total_rules']} rules ({cov['coverage_pct']}%)")
-            if cov["missing"]: console.print(f"  Uncoverable rules: {cov['missing']}")
-            console.print(f"  LLM retries: {cov['retries']}")
+        result = parse_agents_md_to_python(ap, api_key=key, save=True)
     else:
         from k9log.agents_md_llm import parse_agents_md_with_llm
-        result = parse_agents_md_with_llm(ap, api_key="" if (no_llm or not key) else key, save=True)
+        result = parse_agents_md_with_llm(ap, api_key='' if (no_llm or not key) else key, save=True)
     result.print_summary()
     if not result.verified:
-        console.print("Verification failed. Fix issues and re-run."); return
+        console.print('Verification failed.'); return
     n = sum(len(v) if isinstance(v,list) else sum(len(vv) for vv in v.values() if isinstance(vv,list)) for v in result.constraints.values())
-    console.print(f"  Saved - {n} constraints active\n")
-    console.print("Step 3/3: Starting session watcher...")
+    console.print(f'  Saved - {n} constraints active')
+    console.print('\nStep 2.5/3: Scanning OpenClaw history...')
+    try:
+        from k9log.openclaw_watcher import scan_history
+        st = scan_history(progress=False)
+        if st.get('status') == 'skipped':
+            console.print(f'  {st.get("reason","no history")}')
+        else:
+            s = st.get('sessions_scanned',0); n2 = st.get('cieu_written',0); v = st.get('violations_found',0)
+            console.print(f'  Scanned {s} sessions, {n2} records, {v} violations found')
+            if v > 0: console.print('  Metalearning updated with history')
+    except Exception as e:
+        console.print(f'  History scan skipped: {e}')
+    console.print('\nStep 3/3: Starting session watcher...')
     try:
         from k9log.openclaw_watcher import start_watcher, watcher_status
         start_watcher(background=True); time.sleep(0.5)
-        st = watcher_status()
-        console.print(f"  Watcher started - {st['session_files']} session files found")
+        st2 = watcher_status()
+        console.print(f'  Watcher started - {st2["session_files"]} session files found')
     except Exception as e:
-        console.print(f"  Watcher error: {e}")
-    console.print("\nK9Audit is ready!")
-    console.print("  k9log stats        - violation summary")
-    console.print("  k9log verify-log   - verify hash chain")
-    console.print("  k9log trace --last - trace last violation")
-
-
-@main.group(name='contract')
-def contract_group():
-    pass
-
-@contract_group.command(name='add')
-@click.argument('func_name', required=False, default='')
-@click.option('--file', '-f', default='')
-@click.option('--save', is_flag=True, default=False)
-def contract_add(func_name, file, save):
-    """Build Y*_t contract with auto-prefill (zero LLM)."""
-    from k9log.contract_builder import (prefill_contract, normalize_k9_aliases,
-        hash_constraints, save_contract, constraints_to_k9_code)
-    import json as _j
-    if not func_name:
-        func_name = click.prompt('Function name')
-    console.print(f'\nK9Audit Contract Builder: {func_name}\n')
-    func = None
-    if file:
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location('_m', file)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            func = getattr(mod, func_name, None)
-        except Exception as e:
-            console.print(f'  Could not load: {e}')
-    console.print('  Auto-prefilling from AGENTS.md, AST, history, patterns...')
-    suggestions = prefill_contract(func=func, func_name=func_name)
-    console.print('\nFill in constraints (Enter=keep, space-separated, -=skip)\n')
-    dims = [
-        ('deny',          'Deny content',     'comma-separated: .env, /etc/, 192.168.'),
-        ('only_paths',    'Only paths',       'comma-separated: ./projects/, ./output/'),
-        ('deny_commands', 'Deny commands',    'comma-separated: rm -rf, sudo, chmod 777'),
-        ('only_domains',  'Only domains',     'comma-separated: api.github.com, api.example.com'),
-        ('invariant',     'Param invariant',  'e.g. amount > 0'),
-        ('postcondition', 'Return condition', 'e.g. result.get(ok)'),
-    ]
-    final = {}
-    for key, label, hint in dims:
-        cur = suggestions.get(key, [])
-        default = ', '.join(cur) if cur else ''
-        console.print(f'  [{label}] ({hint})')
-        if cur:
-            console.print(f'  Prefilled: {cur}')
-        val = click.prompt('  Values', default=default)
-        if val.strip() == '-':
-            continue
-        if val.strip():
-            final[key] = [v.strip() for v in val.replace(',', ' ').split('  ') if v.strip()] if '  ' in val.replace(',', '  ') else [v.strip() for v in val.split(',') if v.strip()] if ',' in val else [val.strip()] if val.strip() else []
-
-    constraints = normalize_k9_aliases(**final)
-    h = hash_constraints(constraints)
-    console.print('\nConstraints:')
-    console.print(_j.dumps(constraints, indent=2))
-    console.print(f'Hash: {h[:48]}...')
-    console.print('\n@k9 code:')
-    console.print(constraints_to_k9_code(func_name, constraints))
-    if save or click.confirm('Save to ~/.k9log/config/?', default=True):
-        p = save_contract(func_name, constraints)
-        console.print(f'Saved: {p}')
-
-@contract_group.command(name='show')
-@click.argument('func_name')
-def contract_show(func_name):
-    """Show existing contract for a function."""
-    import json as _j
-    from k9log.contract_builder import constraints_to_template
-    cfg = pathlib.Path.home() / '.k9log' / 'config' / f'{func_name}.json'
-    if not cfg.exists():
-        console.print(f'No contract for {func_name}')
-        return
-    data = _j.loads(cfg.read_text(encoding='utf-8'))
-    constraints = data.get('constraints', {})
-    template = constraints_to_template(constraints)
-    console.print(f'\nContract: {func_name}')
-    console.print(f'Hash: {data.get("_hash","?")[:48]}...')
-    for label, info in template.items():
-        vals = info['values'] if isinstance(info, dict) else info
-        console.print(f'  {label}: {vals}')
+        console.print(f'  Watcher error: {e}')
+    console.print('\nK9Audit is ready!')
+    console.print('  k9log stats        - violation summary')
+    console.print('  k9log verify-log   - verify hash chain')
+    console.print('  k9log learn        - causal metalearning')
+    console.print('  k9log contract add - build Y*_t contract')

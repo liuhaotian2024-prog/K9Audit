@@ -179,10 +179,7 @@ def _write_cieu(tool_name: str, tool_input: dict, session_file: Path,
             "params":       _safe_params(tool_input),
         }
 
-        # Load constraints — search agent-specific workspace first
-        agent_workspace = Path.home() / '.openclaw' / 'agents' / agent_id / 'workspace'
-        if agent_workspace.exists():
-            os.chdir(agent_workspace)
+        # Load constraints (AGENTS.md auto-detected)
         y_star_t = load_constraints(tool_name)
 
         # Check compliance
@@ -390,3 +387,57 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def scan_history(openclaw_dir=None, max_sessions=50, max_records_per_session=200, progress=True):
+    base = openclaw_dir or OPENCLAW_DIR
+    if not base.exists():
+        return {'status': 'skipped', 'reason': 'no OpenClaw dir found'}
+    session_files = sorted(base.glob(SESSIONS_GLOB), key=lambda p: p.stat().st_mtime, reverse=True)[:max_sessions]
+    if not session_files:
+        return {'status': 'skipped', 'reason': 'no session files found'}
+    stats = {'status':'ok','sessions_scanned':0,'tool_calls_found':0,'cieu_written':0,'violations_found':0}
+    seen_ids = set()
+    if progress: print(f'[K9Audit] Scanning {len(session_files)} session files...')
+    for sf in session_files:
+        try: agent_id = sf.parts[-3]
+        except: agent_id = 'unknown'
+        agent_ws = base / 'agents' / agent_id / 'workspace'
+        if agent_ws.exists(): os.chdir(agent_ws)
+        try: lines = sf.read_text(encoding='utf-8', errors='replace').splitlines()
+        except: continue
+        stats['sessions_scanned'] += 1
+        rec = 0
+        for line in lines:
+            if not line.strip() or rec >= max_records_per_session: continue
+            tc = _parse_tool_call(line)
+            if not tc: continue
+            tid = tc.get('tool_call_id','')
+            if tid and tid in seen_ids: continue
+            if tid: seen_ids.add(tid)
+            stats['tool_calls_found'] += 1; rec += 1
+            try:
+                from k9log.constraints import load_constraints, check_compliance
+                from k9log.logger import get_logger
+                import uuid as _u
+                from datetime import datetime, timezone
+                u_t = {'skill': tc['tool_name'], 'skill_module': 'openclaw', 'params': _safe_params(tc['tool_input'])}
+                y = load_constraints(tc['tool_name'])
+                r = check_compliance(u_t['params'], {'result': None}, y)
+                cieu = {'event_type':'PreToolUse','timestamp':datetime.now(timezone.utc).isoformat(),
+                        'call_id':str(_u.uuid4()),
+                        'X_t':{'agent_id':agent_id,'session_id':sf.stem,'watcher':'k9log.history_scan','source':'history_scan'},
+                        'U_t':u_t,'Y_star_t':y,'Y_t+1':{'status':'historical'},'R_t+1':r}
+                get_logger().write_cieu(cieu)
+                stats['cieu_written'] += 1
+                if not r.get('passed', True): stats['violations_found'] += 1
+            except Exception as e: _log.debug('history_scan: %s', e)
+    if progress:
+        print(f'[K9Audit] History scan: {stats["sessions_scanned"]} sessions, {stats["cieu_written"]} records, {stats["violations_found"]} violations')
+    if stats['cieu_written'] > 0:
+        try:
+            from k9log.metalearning import learn
+            learn(write_grants=True)
+            if progress: print('[K9Audit] Metalearning updated from history')
+        except Exception as e: _log.debug('history_scan metalearning: %s', e)
+    return stats
