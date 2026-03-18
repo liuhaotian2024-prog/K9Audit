@@ -1690,3 +1690,84 @@ def openclaw_setup(api_key, base_url, agents_md, no_llm, mode):
     console.print("  k9log stats        - violation summary")
     console.print("  k9log verify-log   - verify hash chain")
     console.print("  k9log trace --last - trace last violation")
+
+
+@main.group(name='contract')
+def contract_group():
+    pass
+
+@contract_group.command(name='add')
+@click.argument('func_name', required=False, default='')
+@click.option('--file', '-f', default='')
+@click.option('--save', is_flag=True, default=False)
+def contract_add(func_name, file, save):
+    """Build Y*_t contract with auto-prefill (zero LLM)."""
+    from k9log.contract_builder import (prefill_contract, normalize_k9_aliases,
+        hash_constraints, save_contract, constraints_to_k9_code)
+    import json as _j
+    if not func_name:
+        func_name = click.prompt('Function name')
+    console.print(f'\nK9Audit Contract Builder: {func_name}\n')
+    func = None
+    if file:
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('_m', file)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            func = getattr(mod, func_name, None)
+        except Exception as e:
+            console.print(f'  Could not load: {e}')
+    console.print('  Auto-prefilling from AGENTS.md, AST, history, patterns...')
+    suggestions = prefill_contract(func=func, func_name=func_name)
+    console.print('\nFill in constraints (Enter=keep, space-separated, -=skip)\n')
+    dims = [
+        ('deny',          'Deny content',     'comma-separated: .env, /etc/, 192.168.'),
+        ('only_paths',    'Only paths',       'comma-separated: ./projects/, ./output/'),
+        ('deny_commands', 'Deny commands',    'comma-separated: rm -rf, sudo, chmod 777'),
+        ('only_domains',  'Only domains',     'comma-separated: api.github.com, api.example.com'),
+        ('invariant',     'Param invariant',  'e.g. amount > 0'),
+        ('postcondition', 'Return condition', 'e.g. result.get(ok)'),
+    ]
+    final = {}
+    for key, label, hint in dims:
+        cur = suggestions.get(key, [])
+        default = ', '.join(cur) if cur else ''
+        console.print(f'  [{label}] ({hint})')
+        if cur:
+            console.print(f'  Prefilled: {cur}')
+        val = click.prompt('  Values', default=default)
+        if val.strip() == '-':
+            continue
+        if val.strip():
+            final[key] = [v.strip() for v in val.replace(',', ' ').split('  ') if v.strip()] if '  ' in val.replace(',', '  ') else [v.strip() for v in val.split(',') if v.strip()] if ',' in val else [val.strip()] if val.strip() else []
+
+    constraints = normalize_k9_aliases(**final)
+    h = hash_constraints(constraints)
+    console.print('\nConstraints:')
+    console.print(_j.dumps(constraints, indent=2))
+    console.print(f'Hash: {h[:48]}...')
+    console.print('\n@k9 code:')
+    console.print(constraints_to_k9_code(func_name, constraints))
+    if save or click.confirm('Save to ~/.k9log/config/?', default=True):
+        p = save_contract(func_name, constraints)
+        console.print(f'Saved: {p}')
+
+@contract_group.command(name='show')
+@click.argument('func_name')
+def contract_show(func_name):
+    """Show existing contract for a function."""
+    import json as _j
+    from k9log.contract_builder import constraints_to_template
+    cfg = pathlib.Path.home() / '.k9log' / 'config' / f'{func_name}.json'
+    if not cfg.exists():
+        console.print(f'No contract for {func_name}')
+        return
+    data = _j.loads(cfg.read_text(encoding='utf-8'))
+    constraints = data.get('constraints', {})
+    template = constraints_to_template(constraints)
+    console.print(f'\nContract: {func_name}')
+    console.print(f'Hash: {data.get("_hash","?")[:48]}...')
+    for label, info in template.items():
+        vals = info['values'] if isinstance(info, dict) else info
+        console.print(f'  {label}: {vals}')

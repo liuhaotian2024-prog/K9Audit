@@ -49,6 +49,13 @@ _SILENT  = _K9_LEVEL == 'OFF'
 _k9_log  = logging.getLogger('k9log.core')
 
 def k9(func=None, **inline_constraints):
+    # Normalize alias params to internal format
+    if inline_constraints:
+        try:
+            from k9log.contract_builder import normalize_k9_aliases
+            inline_constraints = normalize_k9_aliases(**inline_constraints)
+        except Exception:
+            pass
     """
     K9log decorator for automatic CIEU recording
     
