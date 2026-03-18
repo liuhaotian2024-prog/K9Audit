@@ -38,6 +38,15 @@ import uuid as _uuid
 from datetime import datetime, timezone
 
 from k9log.logger import get_logger
+import atexit as _atexit
+
+def _k9_shutdown():
+    try:
+        get_logger().finalize_session()
+    except Exception:
+        pass
+
+_atexit.register(_k9_shutdown)
 from k9log.identity import get_agent_identity
 from k9log.constraints import load_constraints, check_compliance
 from k9log.redact import redact_params, redact_context, redact_result, _redact_value

@@ -1026,13 +1026,42 @@ def grants_approve(grant_id, approve_all):
     else:
         console.print(f"[bold green]{len(approved)} grant(s) activated.[/bold green]")
 
-@main.command("learn", hidden=True)
-def learn_cmd():
-    """Run causal metalearning — suggest grants from incident history"""
-    console.print("[yellow]This command is not included in the Phase 1 public release.[/yellow]")
-    console.print("[dim]Available: stats, agents, trace, verify-log, verify-ystar, report, health[/dim]")
-    return
-
+@main.command("learn")
+@click.option("--log", default=None)
+@click.option("--write-grants", "write_grants", is_flag=True, default=True)
+def learn_cmd(log, write_grants):
+    """Run causal metalearning on CIEU history, suggest tighter constraints."""
+    from pathlib import Path as _P
+    log_path = _P(log) if log else _P.home() / ".k9log" / "logs" / "k9log.cieu.jsonl"
+    if not log_path.exists():
+        console.print(f"[red]CIEU log not found: {log_path}[/red]"); return
+    console.print(f"\n[bold cyan]K9Audit Causal Metalearning[/bold cyan]")
+    console.print(f"  Log: {log_path}")
+    try:
+        from k9log.metalearning import learn
+        results = learn(log_file=str(log_path), write_grants=write_grants)
+        if not results:
+            console.print("[yellow]No patterns found yet. Need more CIEU history.[/yellow]"); return
+        console.print(f"[green]Found {len(results)} causal patterns[/green]\n")
+        result_list = results.get('minimum_cover', results.get('candidates', []))
+        for r in result_list[:10]:
+            rule_obj = r.get("rule", r) if isinstance(r.get("rule"), dict) else r
+            skill = rule_obj.get("target_skill", r.get("skill","?"))
+            rule = rule_obj.get("description", rule_obj.get("id","?"))[:80]
+            fp = r.get("fp_rate", rule_obj.get("fp_rate", "?"))
+            proof = r.get("causal_proof", "")[:60]
+            console.print(f"  [cyan]{skill}[/cyan] fp={fp}")
+            console.print(f"    Rule: {rule}")
+            console.print(f"    Proof: {proof}\n")
+        suggested = _P.home() / ".k9log" / "grants" / "suggested"
+        if write_grants and suggested.exists():
+            n = len(list(suggested.glob("*.json")))
+            console.print(f"[green]{n} grants in {suggested}[/green]")
+            console.print("[dim]Run: k9log grants approve --all[/dim]")
+    except Exception as e:
+        import traceback
+        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 @main.command("health")
 @click.option("--log", default=None, help="CIEU log path (default: ~/.k9log/logs/k9log.cieu.jsonl)")
