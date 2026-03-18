@@ -27,26 +27,50 @@ from datetime import datetime, timezone
 # so users aren't flooded with identical messages on repeated calls.
 _unconstrained_warned: set = set()
 
+def _find_agents_md() -> list:
+    """
+    Search for AGENTS.md or CLAUDE.md in standard locations.
+    Returns list of found paths in priority order.
+    """
+    candidates = []
+    search_dirs = [
+        Path.cwd(),                           # current working directory
+        Path.home() / '.openclaw',            # OpenClaw home
+        Path.home() / '.claude',              # Claude Code home
+        Path.home(),                          # user home
+    ]
+    filenames = ['AGENTS.md', 'CLAUDE.md', 'agents.md', 'claude.md']
+    seen = set()
+    for d in search_dirs:
+        for fname in filenames:
+            p = d / fname
+            if p.exists() and str(p) not in seen:
+                candidates.append(p)
+                seen.add(str(p))
+    return candidates
+
+
 def load_constraints(skill_name, inline_constraints=None):
     """
     Load Y*_t with versioning metadata
-    
+
     Priority:
     1. Inline constraints (runtime override)
     2. Config file (~/.k9log/config/skill_name.json)
-    3. Empty constraints
+    3. AGENTS.md / CLAUDE.md auto-detection (OpenClaw / Claude Code)
+    4. Empty constraints (recorded as UNCONSTRAINED)
     """
     constraints = {}
     source = 'none'
     source_path = None
     version = None
-    
+
     # Priority 1: Inline constraints
     if inline_constraints:
         constraints = inline_constraints
         source = 'decorator'
         source_path = 'inline'
-    
+
     # Priority 2: Config file
     if not constraints:
         config_file = Path.home() / '.k9log' / 'config' / f'{skill_name}.json'
@@ -59,8 +83,29 @@ def load_constraints(skill_name, inline_constraints=None):
                     source = 'config_file'
                     source_path = str(config_file)
             except Exception as e:
-                logging.getLogger('k9log').warning('k9log: failed to load constraints from %s: %s', config_file, e)
-    
+                logging.getLogger('k9log').warning(
+                    'k9log: failed to load constraints from %s: %s', config_file, e)
+
+    # Priority 3: AGENTS.md / CLAUDE.md auto-detection
+    if not constraints:
+        try:
+            from k9log.agents_md_parser import parse_agents_md_to_constraints
+            for agents_path in _find_agents_md():
+                parsed = parse_agents_md_to_constraints(agents_path)
+                if parsed:
+                    constraints = parsed
+                    source = 'agents_md'
+                    source_path = str(agents_path)
+                    version = '1.0.0'
+                    logging.getLogger('k9log').info(
+                        'k9log: loaded constraints from %s (%d rules)',
+                        agents_path, sum(len(v) if isinstance(v, list) else 1
+                                        for v in parsed.values()))
+                    break
+        except Exception as e:
+            logging.getLogger('k9log').debug(
+                'k9log: agents_md auto-load failed: %s', e)
+
     # Calculate hash
     y_star_hash = hash_ystar(constraints)
 
@@ -70,8 +115,8 @@ def load_constraints(skill_name, inline_constraints=None):
     if not constraints and skill_name not in _unconstrained_warned:
         _unconstrained_warned.add(skill_name)
         logging.getLogger('k9log').warning(
-            'k9log: skill "%s" has no constraints (no inline rules, no config file) '
-            '-- call will be recorded as UNCONSTRAINED', skill_name
+            'k9log: skill "%s" has no constraints (no inline rules, no config file, '
+            'no AGENTS.md) -- call will be recorded as UNCONSTRAINED', skill_name
         )
 
     return {
@@ -195,12 +240,21 @@ def check_compliance(params, result, y_star_t):
                 _path = str(p_value).replace("\\", "/")
                 _allowed = False
                 for _pat in allowed_paths_top:
-                    _pat = _pat.replace("\\", "/")
-                    if "**" in _pat:
-                        _base = _pat.split("**")[0].rstrip("/").lstrip("./")
+                    _pat_norm = _pat.replace("\\", "/").rstrip("/")
+                    _path_norm = _path.rstrip("/")
+                    # 1. Exact match
+                    if _path_norm == _pat_norm:
+                        _allowed = True; break
+                    # 2. File is inside allowed directory
+                    if _path_norm.startswith(_pat_norm + "/"):
+                        _allowed = True; break
+                    # 3. Glob with **
+                    if "**" in _pat_norm:
+                        _base = _pat_norm.split("**")[0].rstrip("/").lstrip("./")
                         if _path.lstrip("./").startswith(_base):
                             _allowed = True; break
-                    elif _fnmatch.fnmatch(_path, _pat) or _fnmatch.fnmatch(_path.lstrip("./"), _pat.lstrip("./")):
+                    # 4. fnmatch pattern
+                    if _fnmatch.fnmatch(_path, _pat_norm) or _fnmatch.fnmatch(_path.lstrip("./"), _pat_norm.lstrip("./")):
                         _allowed = True; break
                 if not _allowed:
                     violation = {"type": "PATH_VIOLATION", "field": p_name,
