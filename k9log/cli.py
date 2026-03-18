@@ -1628,6 +1628,52 @@ def audit_cmd(path, checks, output, verbose):
         console.print(f"[dim]Tip: add --output report.html for a full HTML report[/dim]")
 
 
+
+@main.command(name="openclaw-setup")
+@click.option("--api-key",  default="", help="LLM API key")
+@click.option("--base-url", default="https://api.anthropic.com", help="LLM base URL")
+@click.option("--agents-md",default="", help="Path to AGENTS.md")
+@click.option("--no-llm",   is_flag=True, help="Skip LLM, use pattern matcher only")
+def openclaw_setup(api_key, base_url, agents_md, no_llm):
+    """Setup K9Audit: parse AGENTS.md, verify constraints, start watcher."""
+    from pathlib import Path as P
+    import os, time
+    console.print("\nK9Audit OpenClaw Setup\n")
+    console.print("Step 1/3: Finding AGENTS.md...")
+    if agents_md:
+        ap = P(agents_md).expanduser()
+    else:
+        ap = None
+        for c in [P.cwd()/"AGENTS.md", P.home()/".openclaw"/"workspace"/"AGENTS.md",
+                  P.home()/".openclaw"/"AGENTS.md", P.home()/"AGENTS.md"]:
+            if c.exists(): ap = c; break
+    if not ap or not ap.exists():
+        ap = P.cwd() / "AGENTS.md"
+        ap.write_text("# Agent Rules\n## Security\n- Never run rm -rf\n- Do not modify .env files\n- Never access /etc/\n## File Access\n- Only write to ./projects/\n", encoding="utf-8")
+        console.print(f"  No AGENTS.md found. Created sample at: {ap}")
+    else:
+        console.print(f"  Found: {ap}")
+    console.print("\nStep 2/3: Parsing constraints...")
+    from k9log.agents_md_llm import parse_agents_md_with_llm
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY","") or os.environ.get("OPENAI_API_KEY","") or os.environ.get("K9LOG_LLM_API_KEY","")
+    result = parse_agents_md_with_llm(ap, api_key="" if (no_llm or not key) else key, save=True)
+    result.print_summary()
+    if not result.verified:
+        console.print("Verification failed. Fix issues and re-run."); return
+    console.print("\nStep 3/3: Starting session watcher...")
+    try:
+        from k9log.openclaw_watcher import start_watcher, watcher_status
+        start_watcher(background=True); time.sleep(0.5)
+        st = watcher_status()
+        console.print(f"  Watcher started - {st['session_files']} session files found")
+    except Exception as e:
+        console.print(f"  Watcher error: {e}")
+    console.print("\nK9Audit is ready!")
+    console.print("  k9log stats        - violation summary")
+    console.print("  k9log verify-log   - verify hash chain")
+    console.print("  k9log trace --last - trace last violation")
+
+
 if __name__ == '__main__':
     main()
 
