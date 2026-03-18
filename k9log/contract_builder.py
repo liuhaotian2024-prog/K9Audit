@@ -84,11 +84,11 @@ SECURITY_PATTERNS = {
 # Built-in deny patterns always worth suggesting for certain function name patterns
 FUNCTION_NAME_PATTERNS = {
     "deploy": {
-        "deny": [".env", "credentials"],
+        "deny": [".env", "credentials", "production", "prod"],
         "deny_commands": ["rm -rf", "sudo"],
     },
     "write": {
-        "deny": ["/etc/", "/sys/", ".env"],
+        "deny": ["/etc/", "/sys/", ".env", "../", "../../"],
     },
     "execute": {
         "deny_commands": ["rm -rf", "sudo", "| bash"],
