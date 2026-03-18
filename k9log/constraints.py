@@ -34,11 +34,18 @@ def _find_agents_md() -> list:
     """
     candidates = []
     search_dirs = [
-        Path.cwd(),                           # current working directory
-        Path.home() / '.openclaw',            # OpenClaw home
-        Path.home() / '.claude',              # Claude Code home
-        Path.home(),                          # user home
+        Path.cwd(),                                           # current working directory
+        Path.home() / '.openclaw' / 'workspace',             # OpenClaw main workspace
+        Path.home() / '.openclaw',                           # OpenClaw home
+        Path.home() / '.claude',                             # Claude Code home
+        Path.home(),                                         # user home
     ]
+    # Also add per-agent workspaces dynamically
+    agents_dir = Path.home() / '.openclaw' / 'agents'
+    if agents_dir.exists():
+        for agent_ws in agents_dir.glob('*/workspace'):
+            if agent_ws not in search_dirs:
+                search_dirs.append(agent_ws)
     filenames = ['AGENTS.md', 'CLAUDE.md', 'agents.md', 'claude.md']
     seen = set()
     for d in search_dirs:

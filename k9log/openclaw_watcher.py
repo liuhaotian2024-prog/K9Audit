@@ -179,7 +179,10 @@ def _write_cieu(tool_name: str, tool_input: dict, session_file: Path,
             "params":       _safe_params(tool_input),
         }
 
-        # Load constraints (AGENTS.md auto-detected)
+        # Load constraints — search agent-specific workspace first
+        agent_workspace = Path.home() / '.openclaw' / 'agents' / agent_id / 'workspace'
+        if agent_workspace.exists():
+            os.chdir(agent_workspace)
         y_star_t = load_constraints(tool_name)
 
         # Check compliance
