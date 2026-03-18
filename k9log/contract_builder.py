@@ -70,8 +70,8 @@ SECURITY_PATTERNS = {
         "dimension": "deny",
     },
     "amount_params": {
-        "keywords": ["amount", "price", "cost", "fee", "balance", "quantity", "count"],
-        "invariant": ["value > 0"],
+        "keywords": ["amount", "price", "cost", "fee", "balance", "quantity", "count", "total", "sum", "payment", "charge", "budget", "funds", "transfer", "money"],
+        "invariant": ["value > 0", "value < 1000000"],
         "dimension": "invariant",
     },
     "env_params": {
@@ -100,6 +100,10 @@ FUNCTION_NAME_PATTERNS = {
         "deny_commands": ["rm -rf"],
         "postcondition": [],
     },
+    "transfer": {"deny": ["production", "prod"]},
+    "payment":  {"deny": ["production", "prod"]},
+    "fund":     {},
+    "charge":   {"deny": ["production", "prod"]},
 }
 
 
@@ -314,6 +318,28 @@ def prefill_contract(func=None, func_name: str = "") -> Dict[str, Any]:
             if fn_pat in func_name.lower():
                 for dim, values in fn_constraints.items():
                     _extend(dim, values)
+
+
+    # Source 4b: infer param names from func_name, trigger SECURITY_PATTERNS
+    _inferred_param = "value"
+    for kw in ["amount","price","cost","fee","balance","quantity","total","sum","payment","charge","budget","funds","money"]:
+        if kw in func_name.lower():
+            _inferred_param = kw
+            break
+    _inv_added = False
+    for _pname, _pat in SECURITY_PATTERNS.items():
+        if any(kw in func_name.lower() for kw in _pat.get("keywords",[])):
+            _dim = _pat["dimension"]
+            if _dim == "invariant" and not _inv_added:
+                for v in _pat.get("invariant",[]):
+                    inv = v.replace("value", _inferred_param)
+                    if inv not in merged.get("invariant",[]):
+                        merged.setdefault("invariant",[]).append(inv)
+                _inv_added = True
+            elif _dim == "field_deny":
+                for v in _pat.get("field_deny",[]):
+                    if v not in merged.get("field_deny",[]): merged.setdefault("field_deny",[]).append(v)
+                    if v not in merged.get("deny",[]): merged.setdefault("deny",[]).append(v)
 
     # Source 1: AGENTS.md
     agents_suggestions = _load_agents_md_suggestions()
