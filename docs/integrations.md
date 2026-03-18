@@ -220,10 +220,33 @@ class ReportWriterTool(BaseTool):
 
 ## OpenClaw
 
-K9 Audit integrates with OpenClaw via the `@k9` decorator on individual
-skills, or by wrapping an entire skill module at once.
+K9 Audit integrates with OpenClaw at three levels, from zero-code setup to
+full Y*_t intent contract definition.
 
-**Wrap a single skill:**
+### Level 1 — One-command setup (zero code changes)
+
+Run once after `pip install k9audit-hook`:
+
+```bash
+k9log openclaw-setup
+```
+
+This command does four things automatically:
+
+1. Finds or creates your AGENTS.md
+2. Parses your AGENTS.md rules into verified Y*_t constraints (SHA256 hash-anchored)
+3. Scans your existing OpenClaw session history and writes CIEU records retroactively
+4. Starts a background watcher that monitors all future session JSONL files in real time
+
+Every tool call your agent makes is now recorded as a CIEU five-tuple and
+checked against your AGENTS.md rules. No decorator. No code change.
+
+---
+
+### Level 2 — Simplified intent contract with @k9 aliases
+
+If you want to define constraints per-function, the simplified alias interface
+removes the need to learn the internal constraint format:
 
 ```python
 from k9log import k9, set_agent_identity
@@ -231,15 +254,71 @@ from k9log import k9, set_agent_identity
 set_agent_identity(agent_name='OpenClaw')
 
 @k9(
-    amount={'max': 1000},
-    recipient={'blocklist': ['spam@evil.com']}
+    deny=[".env", "/etc/", "production"],
+    only_paths=["./projects/"],
+    deny_commands=["rm -rf", "sudo"],
+    only_domains=["api.github.com"],
+    invariant=["amount > 0", "amount < 1000000"],
+    postcondition=["result.get('status') == 'ok'"],
 )
-def transfer(amount: float, recipient: str) -> dict:
-    # your existing skill logic
+def transfer_funds(amount: float, recipient: str) -> dict:
     return {'status': 'ok', 'amount': amount}
 ```
 
-**Wrap an entire skill module (zero code changes to existing skills):**
+Eight constraint dimensions are supported:
+
+| Alias | Meaning |
+|---|---|
+| `deny` | Strings that must never appear in any parameter |
+| `only_paths` | Allowed filesystem paths |
+| `deny_commands` | Blocked shell commands |
+| `only_domains` | Allowed network domains |
+| `invariant` | Python expressions that must hold on inputs |
+| `postcondition` | Python expressions that must hold on outputs |
+| `field_deny` | Per-field value blocklist |
+| `value_range` | Numeric bounds |
+
+---
+
+### Level 3 — Auto-prefilled contract builder
+
+For any function, K9 Audit can suggest constraints automatically from four
+deterministic sources (no LLM):
+
+- **AST analysis** of the function code
+- **AGENTS.md** rules (pattern matcher)
+- **CIEU history** — what the function actually touched in the past
+- **Security pattern library** — keyed on function and parameter names
+
+```bash
+k9log contract add transfer_funds
+```
+
+Example output for `transfer_funds`:
+
+```
+Auto-prefilling from AGENTS.md, AST, history, patterns...
+
+[Deny content]    (comma-separated: .env, /etc/, 192.168.)
+  Prefilled: production, prod
+  Values [production, prod]:
+
+[Deny commands]   (comma-separated: rm -rf, sudo, chmod 777)
+  Values []:
+
+[Param invariant] (e.g. amount > 0)
+  Prefilled: funds > 0, funds < 1000000
+  Values [funds > 0, funds < 1000000]:
+```
+
+The system infers the parameter name `funds` from the function name
+`transfer_funds` and generates the invariant expressions automatically.
+Press Enter to accept each suggestion. The result is saved to
+`~/.k9log/config/transfer_funds.json` and loaded automatically by `@k9`.
+
+---
+
+### Wrap an entire skill module (legacy, still supported)
 
 ```python
 from k9log.openclaw import k9_wrap_module
