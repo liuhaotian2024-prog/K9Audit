@@ -1628,14 +1628,20 @@ def audit_cmd(path, checks, output, verbose):
         console.print(f"[dim]Tip: add --output report.html for a full HTML report[/dim]")
 
 
+if __name__ == '__main__':
+    main()
+
+
 
 @main.command(name="openclaw-setup")
-@click.option("--api-key",  default="", help="LLM API key")
+@click.option("--api-key",  default="", help="LLM API key (Anthropic/OpenAI/etc)")
 @click.option("--base-url", default="https://api.anthropic.com", help="LLM base URL")
 @click.option("--agents-md",default="", help="Path to AGENTS.md")
 @click.option("--no-llm",   is_flag=True, help="Skip LLM, use pattern matcher only")
-def openclaw_setup(api_key, base_url, agents_md, no_llm):
-    """Setup K9Audit: parse AGENTS.md, verify constraints, start watcher."""
+@click.option("--mode",     default="json", type=click.Choice(["json","python"]),
+              help="json=JSON constraints (default), python=Python code generation")
+def openclaw_setup(api_key, base_url, agents_md, no_llm, mode):
+    """One-command setup: parse AGENTS.md, verify constraints, start watcher."""
     from pathlib import Path as P
     import os, time
     console.print("\nK9Audit OpenClaw Setup\n")
@@ -1654,13 +1660,25 @@ def openclaw_setup(api_key, base_url, agents_md, no_llm):
     else:
         console.print(f"  Found: {ap}")
     console.print("\nStep 2/3: Parsing constraints...")
-    from k9log.agents_md_llm import parse_agents_md_with_llm
     key = api_key or os.environ.get("ANTHROPIC_API_KEY","") or os.environ.get("OPENAI_API_KEY","") or os.environ.get("K9LOG_LLM_API_KEY","")
-    result = parse_agents_md_with_llm(ap, api_key="" if (no_llm or not key) else key, save=True)
+    if mode == "python" and not no_llm and key:
+        from k9log.agents_md_llm import parse_agents_md_to_python
+        console.print("  Mode: Python code generation")
+        result = parse_agents_md_to_python(ap, api_key=key, base_url=base_url, save=True)
+        if hasattr(result, "_coverage"):
+            cov = result._coverage
+            console.print(f"  Coverage: {cov['covered']}/{cov['total_rules']} rules ({cov['coverage_pct']}%)")
+            if cov["missing"]: console.print(f"  Uncoverable rules: {cov['missing']}")
+            console.print(f"  LLM retries: {cov['retries']}")
+    else:
+        from k9log.agents_md_llm import parse_agents_md_with_llm
+        result = parse_agents_md_with_llm(ap, api_key="" if (no_llm or not key) else key, save=True)
     result.print_summary()
     if not result.verified:
         console.print("Verification failed. Fix issues and re-run."); return
-    console.print("\nStep 3/3: Starting session watcher...")
+    n = sum(len(v) if isinstance(v,list) else sum(len(vv) for vv in v.values() if isinstance(vv,list)) for v in result.constraints.values())
+    console.print(f"  Saved - {n} constraints active\n")
+    console.print("Step 3/3: Starting session watcher...")
     try:
         from k9log.openclaw_watcher import start_watcher, watcher_status
         start_watcher(background=True); time.sleep(0.5)
@@ -1672,8 +1690,3 @@ def openclaw_setup(api_key, base_url, agents_md, no_llm):
     console.print("  k9log stats        - violation summary")
     console.print("  k9log verify-log   - verify hash chain")
     console.print("  k9log trace --last - trace last violation")
-
-
-if __name__ == '__main__':
-    main()
-

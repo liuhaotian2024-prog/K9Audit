@@ -75,20 +75,7 @@ Rules for extraction:
 - If a rule lists multiple items with commas, extract each as a separate entry
 - Be conservative: when in doubt, include rather than exclude
 
-Output only the JSON object. Nothing else.
-
-CRITICAL PRECISION RULES:
-- deny_content must be SHORT SPECIFIC strings: file extensions, paths, IP prefixes
-  GOOD: ".env"  "/etc/"  "192.168."  "localhost"
-  BAD:  "files containing secrets"  "destructive shell commands"
-- If rule says "Never modify X or Y", extract X and Y separately
-- command.blocklist must be SHORT COMMAND NAMES only
-  GOOD: "rm"  "sudo"  "chmod"
-  BAD:  "git commit directly to main"  "destructive shell commands"
-- Workflow/process rules like "commit to main" or "ask before deleting" -> SKIP
-  These cannot be enforced as string patterns
-- allowed_paths must be exact paths like "./projects/" not descriptions
-"""
+Output only the JSON object. Nothing else."""
 
 
 def _call_claude(agents_md_content: str, api_key: str) -> Optional[dict]:
@@ -327,57 +314,6 @@ class ParseResult:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-
-
-def _extract_raw_rules(text):
-    rules = []
-    for line in text.splitlines():
-        s = line.strip()
-        if s.startswith(("- ", "* ", "+ ")):
-            r = s.lstrip("-*+ ").strip()
-            if len(r) > 10:
-                rules.append(r)
-    return rules
-
-def _check_coverage(raw_rules, constraints, api_key, base_url, model):
-    if not raw_rules:
-        return []
-    import json as _j
-    prompt = "Check which rules are NOT covered in the constraints.\nRules:\n" + _j.dumps(raw_rules) + "\nConstraints:\n" + _j.dumps(constraints) + "\nReturn ONLY a JSON array of uncovered rules. If all covered return []."
-    result = _call_claude(prompt, api_key)
-    if isinstance(result, list):
-        return result
-    return []
-
-def _fix_missing(missing, constraints, api_key, base_url, model):
-    import json as _j
-    prompt = "Add these missing rules to constraints JSON.\nMissing:\n" + _j.dumps(missing) + "\nExisting:\n" + _j.dumps(constraints) + "\nReturn ONLY the complete updated JSON."
-    return _call_claude(prompt, api_key)
-
-def parse_with_coverage_check(text, api_key, base_url="https://api.anthropic.com", model="", max_retries=2):
-    raw_rules = _extract_raw_rules(text)
-    _log.info("coverage: found %d raw rules", len(raw_rules))
-    constraints = _call_claude(text, api_key)
-    if not constraints:
-        return None, {"total_rules": len(raw_rules), "covered": 0, "missing_after_fix": raw_rules, "retries": 0}
-    missing = []
-    retries = 0
-    for attempt in range(max_retries):
-        missing = _check_coverage(raw_rules, constraints, api_key, base_url, model)
-        _log.info("coverage attempt %d: %d missing", attempt+1, len(missing))
-        if not missing:
-            break
-        fixed = _fix_missing(missing, constraints, api_key, base_url, model)
-        if fixed and isinstance(fixed, dict):
-            constraints = fixed
-            retries += 1
-        else:
-            break
-    covered = len(raw_rules) - len(missing)
-    return constraints, {"total_rules": len(raw_rules), "covered": covered,
-                         "coverage_pct": round(covered/len(raw_rules)*100) if raw_rules else 100,
-                         "missing_after_fix": missing, "retries": retries}
-
 def parse_agents_md_with_llm(
     filepath: str | Path,
     api_key:  Optional[str] = None,
@@ -412,8 +348,8 @@ def parse_agents_md_with_llm(
     fallback_used = False
 
     if key:
-        constraints, coverage = parse_with_coverage_check(content, key)
-        if coverage: _log.info("coverage result: %s", coverage)
+        _log.info("k9log llm_parse: calling Claude to parse %s", path)
+        constraints = _call_claude(content, key)
 
     if constraints is None:
         # Fallback to deterministic parser
@@ -451,4 +387,192 @@ def parse_agents_md_with_llm(
         saved_path = result.save(skill_name)
         _log.info("k9log llm_parse: saved verified constraints to %s", saved_path)
 
+    return result
+# ═════════════════════════════════════════════════════════════════════════════
+# Python-mode: AGENTS.md → Python constraints code → verified → saved
+# ══════════════════════════════════════════════════════════════════════════════
+
+PYTHON_SYSTEM_PROMPT = """\
+You are a Python code generator for K9Audit constraint definitions.
+
+Convert the AGENTS.md rules into a Python dict called CONSTRAINTS.
+Output ONLY valid Python code, no explanation, no markdown fences.
+
+Target format:
+CONSTRAINTS = {
+    "deny_content":    [".env", "/etc/", "/sys/"],
+    "allowed_paths":   ["./projects/"],
+    "allowed_domains": ["api.github.com"],
+    "command":         {"blocklist": ["rm -rf", "sudo"]},
+}
+
+Extraction rules:
+- "Never run X" / "Do not run X"      -> command.blocklist: ["X"]
+- "Never modify X file"               -> deny_content: ["X"]  (X must be short pattern like ".env")
+- "Never access /path/"               -> deny_content: ["/path/"]
+- "Only write to X"                   -> allowed_paths: ["X"]
+- "Only access X domain"              -> allowed_domains: ["X"]
+- "No requests to 192.168.*/localhost" -> deny_content: ["192.168.", "10.", "127.0.0.1", "localhost"]
+
+CRITICAL:
+- deny_content values must be SHORT SPECIFIC strings (max 20 chars)
+  GOOD: ".env"  "/etc/"  "192.168."
+  BAD:  "files containing secrets"  "destructive commands"
+- command.blocklist values must be SHORT COMMAND NAMES
+  GOOD: "rm -rf"  "sudo"  "chmod 777"
+  BAD:  "git commit directly to main"
+- Skip workflow/process rules that cannot be expressed as string patterns
+- If a rule has multiple items (X or Y), extract each separately
+
+Output ONLY the Python assignment. Nothing else. Example:
+CONSTRAINTS = {
+    "deny_content": [".env", "/etc/"],
+    "command": {"blocklist": ["rm -rf"]},
+}"""
+
+
+def _generate_python_constraints(content: str, api_key: str,
+                                  base_url: str = "https://api.anthropic.com",
+                                  model: str = "") -> Optional[str]:
+    """Ask LLM to generate Python CONSTRAINTS dict from AGENTS.md."""
+    import requests as _req, json as _json
+    is_ant = "anthropic.com" in base_url
+    if not model:
+        model = "claude-haiku-4-5-20251001" if is_ant else "gpt-4o-mini"
+
+    prompt = "Convert this AGENTS.md to a Python CONSTRAINTS dict:\n\n" + content
+    try:
+        if is_ant:
+            url = base_url.rstrip("/") + "/v1/messages"
+            h = {"anthropic-version": "2023-06-01",
+                 "content-type": "application/json; charset=utf-8",
+                 "x-api-key": api_key}
+            p = {"model": model, "max_tokens": 1024,
+                 "system": PYTHON_SYSTEM_PROMPT,
+                 "messages": [{"role": "user", "content": prompt}]}
+        else:
+            url = base_url.rstrip("/") + "/chat/completions"
+            h = {"Authorization": f"Bearer {api_key}",
+                 "Content-Type": "application/json; charset=utf-8"}
+            p = {"model": model, "max_tokens": 1024,
+                 "messages": [{"role": "system", "content": PYTHON_SYSTEM_PROMPT},
+                               {"role": "user", "content": prompt}]}
+        resp = _req.post(url, headers=h,
+                         data=_json.dumps(p, ensure_ascii=False).encode("utf-8"),
+                         timeout=60)
+        resp.raise_for_status()
+        if is_ant:
+            return resp.json()["content"][0]["text"].strip()
+        else:
+            return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        _log.error("python_mode: LLM call failed: %s", e)
+        return None
+
+
+def _extract_constraints_from_code(code: str) -> Optional[dict]:
+    import ast as _ast
+    if "```" in code:
+        for part in code.split("```")[1::2]:
+            part = part.strip()
+            if part.startswith("python"): part = part[6:].strip()
+            code = part; break
+    if "CONSTRAINTS" not in code: return None
+    try: _ast.parse(code)
+    except SyntaxError as e: _log.error("syntax: %s", e); return None
+    ns = {}
+    try:
+        exec(code, {"__builtins__": {}}, ns)
+        c = ns.get("CONSTRAINTS")
+        return c if isinstance(c, dict) else None
+    except Exception as e: _log.error("python exec: %s", e); return None
+
+
+def _run_python_smoke_tests(constraints):
+    from k9log.constraints import check_compliance
+    y = {"constraints": constraints, "y_star_meta": {"source":"python_mode","hash":"","version":"1.0.0","loaded_at":"","unconstrained":False}}
+    f, p = [], []
+    for pat in constraints.get("deny_content",[]):
+        if len(pat)<=2: continue
+        r = check_compliance({"file_path":f"/tmp/{pat}/t","content":pat},{"result":None},y)
+        (f if r.get("passed",True) else p).append(f"deny '{pat}'")
+    for cmd in constraints.get("command",{}).get("blocklist",[]):
+        if len(cmd)<=1: continue
+        r = check_compliance({"command":f"{cmd} /tmp"},{"result":None},y)
+        (f if r.get("passed",True) else p).append(f"cmd '{cmd}'")
+    for safe in constraints.get("allowed_paths",[]):
+        if not safe: continue
+        r = check_compliance({"file_path":safe.rstrip("/")+"/t.py"},{"result":None},y)
+        (f if not r.get("passed",True) else p).append(f"path '{safe}'")
+    for d in constraints.get("allowed_domains",[]):
+        if not d: continue
+        r = check_compliance({"url":f"https://{d}/api"},{"result":None},y)
+        (f if not r.get("passed",True) else p).append(f"domain '{d}'")
+    return len(f)==0, f, p
+
+
+
+def _extract_raw_rules(text):
+    rules = []
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith(('- ', '* ', '+ ')):
+            r = s.lstrip('-*+ ').strip()
+            if len(r) > 10:
+                rules.append(r)
+    return rules
+
+def _check_coverage(raw_rules, constraints, api_key, base_url, model):
+    if not raw_rules: return []
+    import json as _j
+    prompt = 'Which rules are NOT covered in constraints? Rules: ' + _j.dumps(raw_rules) + ' Constraints: ' + _j.dumps(constraints) + ' Return ONLY a JSON array of uncovered rules or [].'
+    result = _call_claude(prompt, api_key)
+    return result if isinstance(result, list) else []
+
+def validate_schema(c):
+    if not isinstance(c, dict): return False, ['Not a dict']
+    errs = [f'Unknown key {k}' for k in c if k not in {'deny_content','allowed_paths','allowed_domains','command'}]
+    for lk in ('deny_content','allowed_paths','allowed_domains'):
+        if c.get(lk) is not None and not isinstance(c[lk], list): errs.append(f'{lk} must be list')
+    if c.get('command') is not None and not isinstance(c['command'], dict): errs.append('command must be dict')
+    return len(errs)==0, errs
+
+def parse_agents_md_to_python(filepath, api_key="",
+                               base_url="https://api.anthropic.com",
+                               model="", save=False, max_retries=3):
+    """Parse AGENTS.md -> Python CONSTRAINTS -> verify -> save."""
+    path = Path(filepath).expanduser()
+    if not path.exists():
+        return ParseResult(constraints={},verified=False,schema_errors=[f"Not found: {path}"])
+    content = path.read_text(encoding="utf-8",errors="replace")
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY","") or os.environ.get("OPENAI_API_KEY","")
+    if not key:
+        return parse_agents_md_with_llm(filepath,save=save)
+    raw_rules = _extract_raw_rules(content)
+    constraints,last_code,last_f,retries = None,"",[],0
+    for attempt in range(max_retries+1):
+        if attempt==0: code = _generate_python_constraints(content,key,base_url=base_url,model=model)
+        else:
+            fbk = f"Failures: {json.dumps(last_f)}\nPrevious:\n{last_code}\nFix and output CONSTRAINTS only."
+            code = _generate_python_constraints(fbk,key,base_url=base_url,model=model); retries+=1
+        if not code: continue
+        last_code = code
+        constraints = _extract_constraints_from_code(code)
+        if not constraints: last_f=["Invalid code"]; continue
+        ok,serrs = validate_schema(constraints)
+        if not ok: last_f=serrs; continue
+        tok,f,p = _run_python_smoke_tests(constraints); last_f=f
+        _log.info("python_mode attempt %d: %d passed %d failed",attempt,len(p),len(f))
+        if tok: break
+    schema_ok,serrs = validate_schema(constraints) if constraints else (False,["No constraints"])
+    tok_f,final_f,final_p = _run_python_smoke_tests(constraints) if constraints else (False,[],[])
+    missing = _check_coverage(raw_rules,constraints,key,base_url,model) if constraints else []
+    covered = len(raw_rules)-len(missing)
+    result = ParseResult(constraints=constraints or {},verified=schema_ok and tok_f,
+        schema_errors=serrs,test_failures=final_f,test_passes=final_p,
+        source_path=str(path),fallback_used=False)
+    result._coverage={"total_rules":len(raw_rules),"covered":covered,
+        "coverage_pct":round(covered/len(raw_rules)*100) if raw_rules else 100,
+        "missing":missing,"retries":retries,"mode":"python"}
+    if save and result.verified: result.save("_agents_md_py")
     return result
