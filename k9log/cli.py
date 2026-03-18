@@ -660,6 +660,61 @@ def history(last):
 
 
 
+
+
+# --- OpenClaw Watcher Commands ---
+@main.group(name="openclaw-watch")
+def openclaw_watch():
+    """OpenClaw session watcher — zero-friction background audit"""
+    pass
+
+
+@openclaw_watch.command(name="start")
+def openclaw_watch_start():
+    """Start K9Audit watcher for OpenClaw sessions"""
+    try:
+        from k9log.openclaw_watcher import start_watcher, watcher_status
+        st = watcher_status()
+        if st["running"]:
+            console.print("[yellow]Watcher already running[/yellow]")
+            console.print(f"  Watching {st['session_files']} session files")
+            return
+        start_watcher(background=True)
+        import time; time.sleep(0.5)
+        st = watcher_status()
+        console.print(f"[green]✅ Watcher started[/green]")
+        console.print(f"  Watching: {st['watching']}")
+        console.print(f"  Session files found: {st['session_files']}")
+        console.print("  Run [bold]k9log stats[/bold] to see audit results")
+    except Exception as e:
+        console.print(f"[red]Failed to start watcher: {e}[/red]")
+
+
+@openclaw_watch.command(name="stop")
+def openclaw_watch_stop():
+    """Stop K9Audit watcher"""
+    try:
+        from k9log.openclaw_watcher import stop_watcher
+        stop_watcher()
+    except Exception as e:
+        console.print(f"[red]Failed to stop watcher: {e}[/red]")
+
+
+@openclaw_watch.command(name="status")
+def openclaw_watch_status():
+    """Show watcher status"""
+    try:
+        from k9log.openclaw_watcher import watcher_status
+        st = watcher_status()
+        status_str = "[green]running[/green]" if st["running"] else "[red]stopped[/red]"
+        console.print(f"Watcher status: {status_str}")
+        console.print(f"Session files:  {st['session_files']}")
+        console.print(f"Watching:       {st['watching']}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+
 # --- Fuse Commands ---
 @main.group(hidden=True)
 def fuse():
