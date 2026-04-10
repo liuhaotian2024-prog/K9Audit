@@ -71,9 +71,9 @@ def init():
             f.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
             installed.append(skill)
     if installed:
-        console.print(f"[green]✓ Default constraints: {", ".join(installed)}[/green]")
+        console.print(f"[green]✓ Default constraints: {', '.join(installed)}[/green]")
     if skipped:
-        console.print(f"[dim]  Skipped (exist): {", ".join(skipped)}[/dim]")
+        console.print(f"[dim]  Skipped (exist): {', '.join(skipped)}[/dim]")
 
     console.print()
     console.print("[bold]K9 is now watching. Every Claude Code action will be audited.[/bold]")
